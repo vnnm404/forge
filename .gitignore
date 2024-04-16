@@ -4,6 +4,8 @@ graphxai.egg-info/
 .DS_Store
 figs/
 trained_models/
+graphml/
 
 !figs/.gitkeep
 !trained_models/.gitkeep
+!graphml/.gitkeep

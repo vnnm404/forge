@@ -1,7 +1,7 @@
 from data import load_dataset, get_data_loaders, load_dataset_as_complex
 from models import GCN
 from eval_utils import train, test
-from explain_utils import initialise_explainer, explain_dataset, explanation_accuracy, visualise_explanation
+from explain_utils import initialise_explainer, explain_dataset, explanation_accuracy, visualise_explanation, save_to_graphml
 from config import device
 import torch
 import os
@@ -47,14 +47,17 @@ if __name__ == "__main__":
     print(f"Explanation f1: {metrics['f1']}")
     
     # visualise the first explanation
-    visualise_explanation(pred_explanations[0], ground_truth_explanations[0])
+    visualise_explanation(pred_explanations[1], ground_truth_explanations[1])
+    
+    # save the first explanation to graphml
+    save_to_graphml(dataset[2][0], pred_explanations[1], 'graph_explanation.graphml')
     
 ######### CELL COMPLEX ##########################
 
     ##### DATA LOAD AND PREPROCESSING #####
     print('Loading dataset...')
-    dataset = load_dataset_as_complex('Benzene')
-    train_loader, test_loader = get_data_loaders(dataset, batch_size=64)
+    complex_dataset = load_dataset_as_complex('Benzene')
+    train_loader, test_loader = get_data_loaders(complex_dataset, batch_size=64)
     
     ##### MODEL #####
     model = GCN(in_dim=14, hidden_dim=64, out_dim=1) #TODO: put everything in config + argparse
@@ -81,7 +84,7 @@ if __name__ == "__main__":
         explanation_algorithm_name='GNNExplainer'
     )
 
-    pred_explanations, ground_truth_explanations = explain_dataset(explainer, dataset)
+    pred_explanations, ground_truth_explanations = explain_dataset(explainer, complex_dataset)
     
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
     
@@ -92,3 +95,9 @@ if __name__ == "__main__":
     
     # visualise the first explanation
     visualise_explanation(pred_explanations[1], ground_truth_explanations[1])
+    
+    # save the first explanation to graphml
+    save_to_graphml(dataset[2][0], pred_explanations[1], 'complex_explanation.graphml')
+
+# save ground truth explanation to graphml
+save_to_graphml(dataset[2][0], ground_truth_explanations[1], 'ground_truth_explanation.graphml', is_gt=True)

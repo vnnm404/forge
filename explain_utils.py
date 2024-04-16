@@ -10,6 +10,7 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 import matplotlib.pyplot as plt
 import seaborn as sns
 from time import time
+import networkx as nx
 
 def get_explanation_algorithm(name):
     if name == 'GNNExplainer':
@@ -113,11 +114,9 @@ def visualise_explanation(pred_explanation: PyGExplanation, gt_explanation: Opti
         # remove y axis ticks
         plt.xticks([])
         plt.colorbar()
-        plt.show()
-        
         if save_img:
             plt.savefig(f'figs/fig_{time()}.png', format='png')
-        
+        # plt.show()
     else:
         # plot only predicted explanation
         pred_edge_mask = pred_explanation['edge_mask'].reshape(-1, 1)
@@ -125,7 +124,9 @@ def visualise_explanation(pred_explanation: PyGExplanation, gt_explanation: Opti
         sns.heatmap(pred_edge_mask, cmap='coolwarm')
         plt.title("Predicted Explanation")
         plt.colorbar()
-        plt.show()
+        if save_img:
+            plt.savefig(f'figs/fig_{time()}.png', format='png')
+        # plt.show()
 
 #### FOR CELL COMPLEXES ####
 
@@ -212,3 +213,22 @@ def explain_dataset(
         return explain_cell_complex_dataset(explainer, dataset, num)
     elif isinstance(dataset, GraphDataset):
         return explain_graph_dataset(explainer, dataset, num)
+
+def save_to_graphml(data, explanation, outname='explanation', is_gt=False):
+    edge_list = data.edge_index.t().tolist()
+    if is_gt:
+        edge_mask = explanation.edge_imp.cpu().numpy().tolist()
+        print(edge_mask)
+    else:
+        edge_mask = explanation['edge_mask'].tolist()
+    G = nx.Graph()
+    weighted_edges = [
+        (
+            edge_list[i][0],
+            edge_list[i][1],
+            edge_mask[i]
+        )
+        for i in range(len(edge_list))
+    ]
+    G.add_weighted_edges_from(weighted_edges)
+    nx.write_graphml(G, f'graphml/{outname}')

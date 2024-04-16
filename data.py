@@ -124,6 +124,12 @@ class ComplexDataset(Dataset):
 def lift_dataset(dataset: GraphDataset) -> ComplexDataset:
     """
     Lifts the graphs in the dataset to higher order cell complexes.
+    
+    Args:
+        dataset (GraphDataset): The graph dataset to lift.
+
+    Returns:
+        ComplexDataset: The cell complex dataset.
     """
     return ComplexDataset(dataset)
 

@@ -6,7 +6,7 @@ from torch_geometric.explain import Explanation as PyGExplanation
 from data import ComplexDataset
 from graphxai.utils.explanation import Explanation as GraphXAIExplanation
 from graphxai.datasets.dataset import GraphDataset
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, jaccard_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 from time import time
@@ -54,14 +54,13 @@ def explain_graph_dataset(explainer: Explainer, dataset: GraphDataset, num=50):
     for i in tqdm(range(num)):
         data, gt_explanation = dataset[i]
         # check if gt is all zeros
-        if gt_explanation[0].edge_imp.sum() == 0:
-            continue
+        # if gt_explanation[0].edge_imp.sum() == 0:
+        #     continue
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
         pred = explainer(data.x, edge_index=data.edge_index, batch=data.batch)
         pred["edge_mask"] = pred["edge_mask"] > 0.5
         pred_explanations.append(pred)
-        # print(pred_explanations[-1])
         ground_truth_explanations.append(gt_explanation[0])
     return pred_explanations, ground_truth_explanations
 
@@ -76,27 +75,37 @@ def explanation_accuracy(
     precision = 0
     recall = 0
     f1 = 0
+    jaccard = 0
+    
     for pred, gt in zip(predicted_explanation, ground_truth_explanation):
         pred_edge_mask = pred["edge_mask"]  # thresholded explanation
         gt_edge_mask = gt.edge_imp
 
         edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
-        edge_mask_precision = precision_score(gt_edge_mask, pred_edge_mask)
-        edge_mask_recall = recall_score(gt_edge_mask, pred_edge_mask)
-        edge_mask_f1 = f1_score(gt_edge_mask, pred_edge_mask)
-
+        edge_mask_precision = precision_score(gt_edge_mask, pred_edge_mask, zero_division=0)
+        edge_mask_recall = recall_score(gt_edge_mask, pred_edge_mask, zero_division=0)
+        edge_mask_f1 = f1_score(gt_edge_mask, pred_edge_mask, zero_division=0)
+        edge_mask_jaccard = jaccard_score(gt_edge_mask, pred_edge_mask, zero_division=0)
+        
         acc += edge_mask_accuracy
         precision += edge_mask_precision
         recall += edge_mask_recall
         f1 += edge_mask_f1
+        jaccard += edge_mask_jaccard
 
     acc = acc / len(predicted_explanation)
     precision = precision / len(predicted_explanation)
     recall = recall / len(predicted_explanation)
     f1 = f1 / len(predicted_explanation)
-
-    return {"accuracy": acc, "precision": precision, "recall": recall, "f1": f1}
-
+    jaccard = jaccard / len(predicted_explanation)
+    
+    return {
+        'accuracy': acc,
+        'precision': precision,
+        'recall': recall,
+        'f1': f1,
+        'jaccard': jaccard
+    }
 
 def visualise_explanation(
     pred_explanation: PyGExplanation,

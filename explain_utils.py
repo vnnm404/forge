@@ -116,7 +116,7 @@ def visualise_explanation(pred_explanation: PyGExplanation, gt_explanation: Opti
         plt.show()
         
         if save_img:
-            plt.savefig(f'figs/fig_{time()}.png')
+            plt.savefig(f'figs/fig_{time()}.png', format='png')
         
     else:
         # plot only predicted explanation

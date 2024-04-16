@@ -2,3 +2,8 @@
 __pycache__/
 graphxai.egg-info/
 .DS_Store
+figs/
+trained_models/
+
+!figs/.gitkeep
+!trained_models/.gitkeep

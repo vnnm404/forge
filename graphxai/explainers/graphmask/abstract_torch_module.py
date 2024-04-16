@@ -19,4 +19,3 @@ class AbstractTorchModule(torch.nn.Module):
     def set_device(self, device):
         self.device = device
         self.to(device)
-

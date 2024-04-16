@@ -1,4 +1,4 @@
-'''
+"""
 Explain one node prediction by the model.
 
 Args:
@@ -21,9 +21,9 @@ Returns:
         `node_imp`: :obj:`None`
         `edge_imp`: :obj:`None`
         `enc_subgraph`: :obj:`graphxai.utils.EnclosingSubgraph`
-'''
+"""
 
-'''
+"""
 Explain one graph prediction by the model.
 
 Args:
@@ -45,4 +45,4 @@ Returns:
         `node_imp`: :obj:`None`
         `edge_imp`: :obj:`None`
         `graph`: :obj:`torch_geometric.data.Data`
-'''
+"""

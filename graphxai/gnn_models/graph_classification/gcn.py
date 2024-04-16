@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from torch_geometric.nn import global_mean_pool
 from torch_geometric.nn import GCNConv
 
+
 class GCN_2layer(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super(GCN_2layer, self).__init__()
@@ -18,10 +19,11 @@ class GCN_2layer(torch.nn.Module):
 
         x = global_mean_pool(x, batch)
 
-        #x = F.dropout(x, p=0.5, training=self.training)
+        # x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin(x)
 
         return x
+
 
 class GCN_3layer(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
@@ -40,7 +42,7 @@ class GCN_3layer(torch.nn.Module):
 
         x = global_mean_pool(x, batch)
 
-        #x = F.dropout(x, p=0.5, training=self.training)
+        # x = F.dropout(x, p=0.5, training=self.training)
         x = self.lin(x)
 
         return x

@@ -1,7 +1,7 @@
 import os
 import torch
 
-root_path = '~/GraphXAI/data/ShapeGGen/'
+root_path = "~/GraphXAI/data/ShapeGGen/"
 
 # def load_ShapeGGen(number: int = 1, root: str = Owen_root):
 #     '''
@@ -11,5 +11,6 @@ root_path = '~/GraphXAI/data/ShapeGGen/'
 #     '''
 #     return torch.load(open(os.path.join(root, 'ShapeGGen_{}.pickle'.format(number)), 'rb'))
 
-def load_ShapeGGen(name, root = root_path):
-    return torch.load(open(os.path.join(root, name), 'rb'))
+
+def load_ShapeGGen(name, root=root_path):
+    return torch.load(open(os.path.join(root, name), "rb"))

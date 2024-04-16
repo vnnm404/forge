@@ -14,11 +14,17 @@ def load_data(dataset, mol_num):
     return train_loader, test_loader
 
 
-def train(model: torch.nn.Module, optimizer: torch.optim.Optimizer,
-          criterion: torch.nn.Module, data_loader: DataLoader):
+def train(
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    criterion: torch.nn.Module,
+    data_loader: DataLoader,
+):
     model.train()
     for data in data_loader:  # Iterate in batches over the training dataset.
-        out = model(data.x, data.edge_index, data.batch)  # Perform a single forward pass.
+        out = model(
+            data.x, data.edge_index, data.batch
+        )  # Perform a single forward pass.
         loss = criterion(out, data.y)  # Compute the loss.
         loss.backward()  # Derive gradients.
         optimizer.step()  # Update parameters based on gradients.

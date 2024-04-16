@@ -6,8 +6,12 @@ from torch_geometric.data import Data
 from torch_geometric.utils.convert import to_networkx
 
 
-def visualize_edge_explanation(edge_index: torch.Tensor, node_idx: int = None,
-                               num_nodes: int = None, edge_imp: list = None):
+def visualize_edge_explanation(
+    edge_index: torch.Tensor,
+    node_idx: int = None,
+    num_nodes: int = None,
+    edge_imp: list = None,
+):
     """
     Visualize edge_imp with edge alpha.
 
@@ -28,13 +32,13 @@ def visualize_edge_explanation(edge_index: torch.Tensor, node_idx: int = None,
     if node_idx is None:
         nx.draw_networkx_nodes(G, pos)
     else:
-        nx.draw_networkx_nodes(G, pos, nodelist=[node_idx],
-                               node_color="tab:red")
-        nx.draw_networkx_nodes(G, pos, nodelist=set(G.nodes) - {node_idx},
-                               node_color="tab:blue")
+        nx.draw_networkx_nodes(G, pos, nodelist=[node_idx], node_color="tab:red")
+        nx.draw_networkx_nodes(
+            G, pos, nodelist=set(G.nodes) - {node_idx}, node_color="tab:blue"
+        )
 
     nx.draw_networkx_edges(G, pos, width=edge_imp)
 
-    plt.axis('off')
+    plt.axis("off")
     plt.grid(False)
     plt.show()

@@ -3,6 +3,7 @@ from torch.nn.parameter import Parameter
 import numpy as np
 from torch import sigmoid
 
+
 class HardConcrete(torch.nn.Module):
 
     def __init__(self, beta=1 / 3, gamma=-0.2, zeta=1.0, fix_temp=True, loc_bias=3):
@@ -19,7 +20,7 @@ class HardConcrete(torch.nn.Module):
         input_element = input_element + self.loc_bias
 
         if self.training:
-            u = torch.empty_like(input_element).uniform_(1e-6, 1.0-1e-6)
+            u = torch.empty_like(input_element).uniform_(1e-6, 1.0 - 1e-6)
 
             s = sigmoid((torch.log(u) - torch.log(1 - u) + input_element) / self.temp)
 

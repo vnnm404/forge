@@ -12,10 +12,12 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 EPS = 1e-15
 
+
 class GNNExplainer(_BaseExplainer):
     """
     GNNExplainer: node only
     """
+
     def __init__(self, model: torch.nn.Module, coeff: dict = None):
         """
         Args:
@@ -32,18 +34,22 @@ class GNNExplainer(_BaseExplainer):
         if coeff is not None:
             self.coeff = coeff
         else:
-            self.coeff = {'edge': {'entropy': 1.0, 'size': 0.005},
-                          'feature': {'entropy': 0.1, 'size': 1.0}}
+            self.coeff = {
+                "edge": {"entropy": 1.0, "size": 0.005},
+                "feature": {"entropy": 0.1, "size": 1.0},
+            }
 
-    def get_explanation_node(self, 
-            node_idx: int, 
-            x: torch.Tensor,                 
-            edge_index: torch.Tensor,
-            label: torch.Tensor = None,
-            num_hops: int = None,
-            explain_feature: bool = True,
-            y = None,
-            forward_kwargs: dict = {}):
+    def get_explanation_node(
+        self,
+        node_idx: int,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        label: torch.Tensor = None,
+        num_hops: int = None,
+        explain_feature: bool = True,
+        y=None,
+        forward_kwargs: dict = {},
+    ):
         """
         Explain a node prediction.
 
@@ -70,21 +76,24 @@ class GNNExplainer(_BaseExplainer):
                 2. the mapping from node indices in `node_idx` to their new location
                 3. the `edge_index` mask indicating which edges were preserved
         """
-        label = self._predict(x.to(device), edge_index.to(device),
-                              forward_kwargs=forward_kwargs)# if label is None else label
+        label = self._predict(
+            x.to(device), edge_index.to(device), forward_kwargs=forward_kwargs
+        )  # if label is None else label
         num_hops = self.L if num_hops is None else num_hops
 
         org_eidx = edge_index.clone().to(device)
 
-        khop_info = subset, sub_edge_index, mapping, hard_edge_mask = \
-            k_hop_subgraph(node_idx, num_hops, edge_index,
-                           relabel_nodes=True) #num_nodes=x.shape[0])
+        khop_info = subset, sub_edge_index, mapping, hard_edge_mask = k_hop_subgraph(
+            node_idx, num_hops, edge_index, relabel_nodes=True
+        )  # num_nodes=x.shape[0])
         sub_x = x[subset].to(device)
 
         # print('sub_x shape', sub_x.shape)
         # print('sub edge index shape', sub_edge_index.shape)
 
-        self._set_masks(sub_x.to(device), sub_edge_index.to(device), explain_feature=explain_feature)
+        self._set_masks(
+            sub_x.to(device), sub_edge_index.to(device), explain_feature=explain_feature
+        )
 
         self.model.eval()
         num_epochs = 200
@@ -92,38 +101,40 @@ class GNNExplainer(_BaseExplainer):
         # Loss function for GNNExplainer's objective
         def loss_fn(log_prob, mask, mask_type):
             # Select the log prob and the label of node_idx
-            node_log_prob = log_prob[torch.where(subset==node_idx)].squeeze()
+            node_log_prob = log_prob[torch.where(subset == node_idx)].squeeze()
             node_label = label[mapping]
             # Maximize the probability of predicting the label (cross entropy)
             loss = -node_log_prob[node_label].item()
             a = mask.sigmoid()
             # Size regularization
-            loss += self.coeff[mask_type]['size'] * torch.sum(a)
+            loss += self.coeff[mask_type]["size"] * torch.sum(a)
             # Element-wise entropy regularization
             # Low entropy implies the mask is close to binary
-            entropy = -a * torch.log(a + 1e-15) - (1-a) * torch.log(1-a + 1e-15)
-            loss += self.coeff[mask_type]['entropy'] * entropy.mean()
+            entropy = -a * torch.log(a + 1e-15) - (1 - a) * torch.log(1 - a + 1e-15)
+            loss += self.coeff[mask_type]["entropy"] * entropy.mean()
             return loss
 
         def train(mask, mask_type):
             optimizer = torch.optim.Adam([mask], lr=0.01)
-            for epoch in range(1, num_epochs+1):
+            for epoch in range(1, num_epochs + 1):
                 optimizer.zero_grad()
-                if mask_type == 'feature':
+                if mask_type == "feature":
                     h = sub_x.to(device) * mask.view(1, -1).sigmoid().to(device)
                 else:
                     h = sub_x.to(device)
-                log_prob = self._predict(h.to(device), sub_edge_index.to(device), return_type='log_prob')
+                log_prob = self._predict(
+                    h.to(device), sub_edge_index.to(device), return_type="log_prob"
+                )
                 loss = loss_fn(log_prob, mask, mask_type)
                 loss.backward()
                 optimizer.step()
 
         feat_imp = None
-        if explain_feature: # Get a feature mask
-            train(self.feature_mask, 'feature')
+        if explain_feature:  # Get a feature mask
+            train(self.feature_mask, "feature")
             feat_imp = self.feature_mask.data.sigmoid()
 
-        train(self.edge_mask, 'edge')
+        train(self.edge_mask, "edge")
         edge_imp = self.edge_mask.data.sigmoid().to(device)
 
         # print('pre activation edge_imp:', edge_imp)
@@ -133,15 +144,19 @@ class GNNExplainer(_BaseExplainer):
 
         self._clear_masks()
 
-        discrete_edge_mask = (edge_imp > 0.5) # Turn into bool activation because of sigmoid
+        discrete_edge_mask = (
+            edge_imp > 0.5
+        )  # Turn into bool activation because of sigmoid
 
-        khop_info = (subset, org_eidx[:,hard_edge_mask], mapping, hard_edge_mask)
+        khop_info = (subset, org_eidx[:, hard_edge_mask], mapping, hard_edge_mask)
 
         exp = Explanation(
-            feature_imp = feat_imp,
-            node_imp = node_mask_from_edge_mask(khop_info[0], khop_info[1], edge_mask = discrete_edge_mask),
-            edge_imp = discrete_edge_mask.float(),
-            node_idx = node_idx
+            feature_imp=feat_imp,
+            node_imp=node_mask_from_edge_mask(
+                khop_info[0], khop_info[1], edge_mask=discrete_edge_mask
+            ),
+            edge_imp=discrete_edge_mask.float(),
+            node_idx=node_idx,
         )
 
         exp.set_enclosing_subgraph(khop_info)
@@ -170,7 +185,7 @@ class GNNExplainer(_BaseExplainer):
     #     """
     #     raise Exception('GNNExplainer does not support graph-level explanation.')
 
-    def get_explanation_graph(self, x, edge_index, forward_kwargs = {}, lr = 0.01):
+    def get_explanation_graph(self, x, edge_index, forward_kwargs={}, lr=0.01):
         r"""Learns and returns a node feature mask and an edge mask that play a
         crucial role to explain the prediction made by the GNN for a graph.
 
@@ -195,18 +210,25 @@ class GNNExplainer(_BaseExplainer):
             # #     prediction = out
             # # else:
             # log_logits = self.__to_log_prob__(out)
-            log_logits = self._predict(x.to(device), edge_index.to(device), forward_kwargs = forward_kwargs, return_type='log_prob')
+            log_logits = self._predict(
+                x.to(device),
+                edge_index.to(device),
+                forward_kwargs=forward_kwargs,
+                return_type="log_prob",
+            )
             pred_label = log_logits.argmax(dim=-1)
 
-        self._set_masks(x, edge_index, edge_mask = None, explain_feature = True, device = x.device)
-        #self.to(x.device)
-        #if self.allow_edge_mask:
+        self._set_masks(
+            x, edge_index, edge_mask=None, explain_feature=True, device=x.device
+        )
+        # self.to(x.device)
+        # if self.allow_edge_mask:
         # self.feature_mask = self.feature_mask.to(x.device)
         # self.edge_mask = self.edge_mask.to(x.device)
         parameters = [self.feature_mask, self.edge_mask]
-        #else:
-            #parameters = [self.feature_mask]
-        #ipdb.set_trace()
+        # else:
+        # parameters = [self.feature_mask]
+        # ipdb.set_trace()
         optimizer = torch.optim.Adam(parameters, lr=lr)
 
         # if self.log:  # pragma: no cover
@@ -227,23 +249,23 @@ class GNNExplainer(_BaseExplainer):
                 loss = -log_logits[0, pred_label[0]]
 
             m = self.edge_mask.sigmoid()
-            #edge_reduce = getattr(torch, self.coeffs['edge_reduction'])
-            loss = loss + self.coeff['edge']['size'] * torch.sum(m)
+            # edge_reduce = getattr(torch, self.coeffs['edge_reduction'])
+            loss = loss + self.coeff["edge"]["size"] * torch.sum(m)
             ent = -m * torch.log(m + EPS) - (1 - m) * torch.log(1 - m + EPS)
-            #loss = loss + self.coeffs['edge_ent'] * ent.mean()
-            loss = loss + self.coeff['edge']['entropy'] * ent.mean()
+            # loss = loss + self.coeffs['edge_ent'] * ent.mean()
+            loss = loss + self.coeff["edge"]["entropy"] * ent.mean()
 
             m = self.feature_mask.sigmoid()
-            #node_feat_reduce = getattr(torch, self.coeffs['node_feat_reduction'])
-            #loss = loss + self.coeffs['node_feat_size'] * node_feat_reduce(m)
-            loss = loss + self.coeff['feature']['size'] * torch.sum(m)
+            # node_feat_reduce = getattr(torch, self.coeffs['node_feat_reduction'])
+            # loss = loss + self.coeffs['node_feat_size'] * node_feat_reduce(m)
+            loss = loss + self.coeff["feature"]["size"] * torch.sum(m)
             ent = -m * torch.log(m + EPS) - (1 - m) * torch.log(1 - m + EPS)
-            #loss = loss + self.coeffs['node_feat_ent'] * ent.mean()
-            loss = loss + self.coeff['feature']['entropy'] * ent.mean()
+            # loss = loss + self.coeffs['node_feat_ent'] * ent.mean()
+            loss = loss + self.coeff["feature"]["entropy"] * ent.mean()
 
             return loss
 
-        num_epochs = 200 # TODO: make more general
+        num_epochs = 200  # TODO: make more general
         for epoch in range(1, num_epochs + 1):
             optimizer.zero_grad()
             h = x * self.feature_mask.sigmoid()
@@ -251,7 +273,12 @@ class GNNExplainer(_BaseExplainer):
 
             # log_logits = self.__to_log_prob__(out)
 
-            log_logits = self._predict(h.to(device), edge_index.to(device), forward_kwargs = forward_kwargs, return_type='log_prob')
+            log_logits = self._predict(
+                h.to(device),
+                edge_index.to(device),
+                forward_kwargs=forward_kwargs,
+                return_type="log_prob",
+            )
 
             loss = loss_fn(-1, log_logits, pred_label)
             loss.backward()
@@ -269,14 +296,11 @@ class GNNExplainer(_BaseExplainer):
         self._clear_masks()
 
         node_imp = node_mask_from_edge_mask(
-            torch.arange(x.shape[0]).to(x.device), 
-            edge_index, 
-            (edge_mask > 0.5)) # Make edge mask into discrete and convert to node mask
+            torch.arange(x.shape[0]).to(x.device), edge_index, (edge_mask > 0.5)
+        )  # Make edge mask into discrete and convert to node mask
 
         exp = Explanation(
-            feature_imp = feature_mask,
-            node_imp = node_imp.float(),
-            edge_imp = edge_mask 
+            feature_imp=feature_mask, node_imp=node_imp.float(), edge_imp=edge_mask
         )
 
         exp.set_whole_graph(Data(x=x, edge_index=edge_index))

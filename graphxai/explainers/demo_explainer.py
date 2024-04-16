@@ -1,5 +1,6 @@
 import torch
 
+
 class DemoExplainer:
     def __init__(self, model, criterion, *_):
         """
@@ -9,11 +10,22 @@ class DemoExplainer:
         """
         self.model = model
         self.criterion = criterion
-        self.L = len([module for module in self.model.modules()
-                      if isinstance(module, MessagePassing)])
+        self.L = len(
+            [
+                module
+                for module in self.model.modules()
+                if isinstance(module, MessagePassing)
+            ]
+        )
 
-    def get_explanation_node(self, node_idx: int, edge_index: torch.Tensor,
-                             x: torch.Tensor, label: torch.Tensor, *_):
+    def get_explanation_node(
+        self,
+        node_idx: int,
+        edge_index: torch.Tensor,
+        x: torch.Tensor,
+        label: torch.Tensor,
+        *_
+    ):
         """
         Explain a node prediction.
 
@@ -33,12 +45,12 @@ class DemoExplainer:
                 2. the mapping from node indices in `node_idx` to their new location
                 3. the `edge_index` mask indicating which edges were preserved
         """
-        exp = {'feature': None, 'edge': None}
+        exp = {"feature": None, "edge": None}
 
         num_hops = self.L
-        khop_info = subset, sub_edge_index, mapping, _ = \
-            k_hop_subgraph(node_idx, num_hops, edge_index,
-                           relabel_nodes=True, num_nodes=x.shape[0])
+        khop_info = subset, sub_edge_index, mapping, _ = k_hop_subgraph(
+            node_idx, num_hops, edge_index, relabel_nodes=True, num_nodes=x.shape[0]
+        )
         sub_x = x[subset]
 
         self.model.eval()
@@ -46,8 +58,9 @@ class DemoExplainer:
 
         return exp, khop_info
 
-    def get_explanation_graph(self, edge_index: torch.Tensor,
-                              x: torch.Tensor, label: torch.Tensor, *_):
+    def get_explanation_graph(
+        self, edge_index: torch.Tensor, x: torch.Tensor, label: torch.Tensor, *_
+    ):
         """
         Explain a whole-graph prediction.
 
@@ -62,7 +75,7 @@ class DemoExplainer:
                 exp['feature'] (torch.Tensor, [n x d]): feature mask explanation
                 exp['edge'] (torch.Tensor, [m]): k-hop edge mask explanation
         """
-        exp = {'feature': None, 'edge': None}
+        exp = {"feature": None, "edge": None}
 
         self.model.eval()
         # Compute explanation

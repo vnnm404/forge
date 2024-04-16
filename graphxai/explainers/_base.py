@@ -14,11 +14,13 @@ class _BaseExplainer:
     """
     Base Class for Explainers
     """
-    def __init__(self,
-            model: nn.Module,
-            emb_layer_name: Optional[str] = None,
-            is_subgraphx: Optional[bool] = False
-        ):
+
+    def __init__(
+        self,
+        model: nn.Module,
+        emb_layer_name: Optional[str] = None,
+        is_subgraphx: Optional[bool] = False,
+    ):
         """
         Args:
             model (torch.nn.Module): model on which to make predictions
@@ -28,8 +30,13 @@ class _BaseExplainer:
                 If not specified, use the last but one layer by default.
         """
         self.model = model
-        self.L = len([module for module in self.model.modules()
-                      if isinstance(module, MessagePassing)])
+        self.L = len(
+            [
+                module
+                for module in self.model.modules()
+                if isinstance(module, MessagePassing)
+            ]
+        )
         self.explain_graph = False  # Assume node-level explanation by default
         self.subgraphx_flag = is_subgraphx
         self.__set_embedding_layer(emb_layer_name)
@@ -42,28 +49,34 @@ class _BaseExplainer:
             try:
                 self.emb_layer = getattr(self.model, emb_layer_name)
             except AttributeError:
-                raise ValueError(f'{emb_layer_name} does not exist in the model')
+                raise ValueError(f"{emb_layer_name} does not exist in the model")
         else:
             self.emb_layer = list(self.model.modules())[-2]
 
-    def _get_embedding(self, x: torch.Tensor, edge_index: torch.Tensor,
-                       forward_kwargs: dict = {}):
+    def _get_embedding(
+        self, x: torch.Tensor, edge_index: torch.Tensor, forward_kwargs: dict = {}
+    ):
         """
         Get the embedding.
         """
         emb = self._get_activation(self.emb_layer, x, edge_index, forward_kwargs)
         return emb
 
-    def _set_masks(self, x: torch.Tensor, edge_index: torch.Tensor,
-                   edge_mask: torch.Tensor = None, explain_feature: bool = False,
-                   device = None):
+    def _set_masks(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        edge_mask: torch.Tensor = None,
+        explain_feature: bool = False,
+        device=None,
+    ):
         """
         Initialize the edge (and feature) masks.
         """
         (n, d), m = x.shape, edge_index.shape[1]
 
         # Initialize edge_mask and feature_mask for learning
-        std = torch.nn.init.calculate_gain('relu') * np.sqrt(2.0 / (2 * n))
+        std = torch.nn.init.calculate_gain("relu") * np.sqrt(2.0 / (2 * n))
         if edge_mask is None:
             edge_mask = (torch.randn(m) * std).to(device)
             self.edge_mask = torch.nn.Parameter(edge_mask)
@@ -94,10 +107,15 @@ class _BaseExplainer:
         for module in self.model.modules():
             if isinstance(module, MessagePassing):
                 return module.flow
-        return 'source_to_target'
+        return "source_to_target"
 
-    def _predict(self, x: torch.Tensor, edge_index: torch.Tensor,
-                 return_type: str = 'label', forward_kwargs: dict = {}):
+    def _predict(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        return_type: str = "label",
+        forward_kwargs: dict = {},
+    ):
         """
         Get the model's prediction.
 
@@ -114,11 +132,11 @@ class _BaseExplainer:
         # Compute unnormalized class score
         with torch.no_grad():
             out = self.model.to(device)(x, edge_index, **forward_kwargs)
-            if return_type == 'label':
+            if return_type == "label":
                 out = out.argmax(dim=-1)
-            elif return_type == 'prob':
+            elif return_type == "prob":
                 out = F.softmax(out, dim=-1)
-            elif return_type == 'log_prob':
+            elif return_type == "log_prob":
                 out = F.log_softmax(out, dim=-1)
             else:
                 raise ValueError("return_type must be 'label', 'prob', or 'log_prob'")
@@ -139,11 +157,13 @@ class _BaseExplainer:
         Returns:
             get_prob_score (callable): the probability score function
         """
-        def get_prob_score(x: torch.Tensor,
-                           edge_index: torch.Tensor,
-                           forward_kwargs: dict = {}):
-            prob = self._predict(x, edge_index, return_type='prob',
-                                 forward_kwargs=forward_kwargs)
+
+        def get_prob_score(
+            x: torch.Tensor, edge_index: torch.Tensor, forward_kwargs: dict = {}
+        ):
+            prob = self._predict(
+                x, edge_index, return_type="prob", forward_kwargs=forward_kwargs
+            )
             score = prob[:, target_class]
             return score
 
@@ -163,33 +183,45 @@ class _BaseExplainer:
             get_prob_score (callable): the probability score function
         """
         if self.subgraphx_flag:
-            def get_prob_score(x: torch.Tensor,
-                            edge_index: torch.Tensor,
-                            forward_kwargs: dict = {}):
-                prob = self._predict(x, edge_index, return_type='prob',
-                                    forward_kwargs=forward_kwargs)
+
+            def get_prob_score(
+                x: torch.Tensor, edge_index: torch.Tensor, forward_kwargs: dict = {}
+            ):
+                prob = self._predict(
+                    x, edge_index, return_type="prob", forward_kwargs=forward_kwargs
+                )
                 score = prob[node_idx, target_class]
                 return score
+
         else:
-            def get_prob_score(x: torch.Tensor,
-                            edge_index: torch.Tensor,
-                            forward_kwargs: dict = {}):
-                prob = self._predict(x, edge_index, return_type='prob',
-                                    forward_kwargs=forward_kwargs)
+
+            def get_prob_score(
+                x: torch.Tensor, edge_index: torch.Tensor, forward_kwargs: dict = {}
+            ):
+                prob = self._predict(
+                    x, edge_index, return_type="prob", forward_kwargs=forward_kwargs
+                )
                 score = prob[:, node_idx, target_class]
                 return score
 
         return get_prob_score
 
-    def _get_activation(self, layer: nn.Module, x: torch.Tensor,
-                        edge_index: torch.Tensor, forward_kwargs: dict = {}):
+    def _get_activation(
+        self,
+        layer: nn.Module,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        forward_kwargs: dict = {},
+    ):
         """
         Get the activation of the layer.
         """
         activation = {}
+
         def get_activation():
             def hook(model, inp, out):
-                activation['layer'] = out.detach()
+                activation["layer"] = out.detach()
+
             return hook
 
         layer.register_forward_hook(get_activation())
@@ -197,10 +229,16 @@ class _BaseExplainer:
         with torch.no_grad():
             _ = self.model(x, edge_index, **forward_kwargs)
 
-        return activation['layer']
+        return activation["layer"]
 
-    def _get_k_hop_subgraph(self, node_idx: int, x: torch.Tensor,
-                            edge_index: torch.Tensor, num_hops: int = None, **kwargs):
+    def _get_k_hop_subgraph(
+        self,
+        node_idx: int,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        num_hops: int = None,
+        **kwargs,
+    ):
         """
         Extract the subgraph of target node
 
@@ -213,17 +251,20 @@ class _BaseExplainer:
         Returns:
         """
         # TODO: use NamedTuple
-        khop_info = subset, sub_edge_index, mapping, _ = \
-            k_hop_subgraph(node_idx, num_hops, edge_index,
-                           relabel_nodes=True, num_nodes=x.shape[0])
+        khop_info = subset, sub_edge_index, mapping, _ = k_hop_subgraph(
+            node_idx, num_hops, edge_index, relabel_nodes=True, num_nodes=x.shape[0]
+        )
         return khop_info
 
-    def get_explanation_node(self, node_idx: int,
-                             x: torch.Tensor,
-                             edge_index: torch.Tensor,
-                             label: torch.Tensor = None,
-                             num_hops: int = None,
-                             forward_kwargs: dict = {}):
+    def get_explanation_node(
+        self,
+        node_idx: int,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        label: torch.Tensor = None,
+        num_hops: int = None,
+        forward_kwargs: dict = {},
+    ):
         """
         Explain a node prediction.
 
@@ -250,28 +291,36 @@ class _BaseExplainer:
                 3. the `edge_index` mask indicating which edges were preserved
         """
         # If labels are needed
-        label = self._predict(x, edge_index, return_type='label') if label is None else label
+        label = (
+            self._predict(x, edge_index, return_type="label")
+            if label is None
+            else label
+        )
         # If probabilities / log probabilities are needed
-        prob = self._predict(x, edge_index, return_type='prob')
-        log_prob = self._predict(x, edge_index, return_type='log_prob')
+        prob = self._predict(x, edge_index, return_type="prob")
+        log_prob = self._predict(x, edge_index, return_type="log_prob")
 
         num_hops = self.L if num_hops is None else num_hops
 
-        khop_info = subset, sub_edge_index, mapping, _ = \
-            k_hop_subgraph(node_idx, num_hops, edge_index,
-                           relabel_nodes=True, num_nodes=x.shape[0])
+        khop_info = subset, sub_edge_index, mapping, _ = k_hop_subgraph(
+            node_idx, num_hops, edge_index, relabel_nodes=True, num_nodes=x.shape[0]
+        )
         sub_x = x[subset]
 
-        exp = {'feature_imp': None, 'edge_imp': None}
+        exp = {"feature_imp": None, "edge_imp": None}
 
         # Compute exp
         raise NotImplementedError()
 
         return exp, khop_info
 
-    def get_explanation_graph(self, edge_index: torch.Tensor,
-                              x: torch.Tensor, label: torch.Tensor,
-                              forward_kwargs: dict = {}):
+    def get_explanation_graph(
+        self,
+        edge_index: torch.Tensor,
+        x: torch.Tensor,
+        label: torch.Tensor,
+        forward_kwargs: dict = {},
+    ):
         """
         Explain a whole-graph prediction.
 
@@ -288,7 +337,7 @@ class _BaseExplainer:
                 exp['edge_imp'] (torch.Tensor, [m]): k-hop edge importance
                 exp['node_imp'] (torch.Tensor, [m]): k-hop node importance
         """
-        exp = {'feature_imp': None, 'edge_imp': None}
+        exp = {"feature_imp": None, "edge_imp": None}
 
         # Compute exp
         raise NotImplementedError()

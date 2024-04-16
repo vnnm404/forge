@@ -16,16 +16,24 @@ from .utils import chi_square_pgm, generalize_target, generalize_others
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+
 class PGMExplainer(_BaseExplainer):
     """
     PGMExplainer
 
     Reference: https://github.com/vunhatminh/PGMExplainer
     """
-    def __init__(self, model: torch.nn.Module,
-                 explain_graph: bool, num_samples: int = None,
-                 perturb_mode: str = None, perturb_prob: float = 0.5,
-                 p_threshold: float = 0.05, pred_diff_threshold: float = 0.1):
+
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        explain_graph: bool,
+        num_samples: int = None,
+        perturb_mode: str = None,
+        perturb_prob: float = 0.5,
+        p_threshold: float = 0.05,
+        pred_diff_threshold: float = 0.1,
+    ):
         """
         Args:
             model (torch.nn.Module): model on which to make predictions
@@ -57,18 +65,21 @@ class PGMExplainer(_BaseExplainer):
             self.num_samples = num_samples
 
         if perturb_mode is None:
-            self.perturb_mode = 'mean' if explain_graph else 'scale'
+            self.perturb_mode = "mean" if explain_graph else "scale"
         else:
-            if perturb_mode not in ['scale', 'gaussian', 'uniform', 'mean']:
-                raise ValueError("perturb_mode must be one of ['scale', 'gaussian', 'uniform', 'mean']")
+            if perturb_mode not in ["scale", "gaussian", "uniform", "mean"]:
+                raise ValueError(
+                    "perturb_mode must be one of ['scale', 'gaussian', 'uniform', 'mean']"
+                )
             self.perturb_mode = perturb_mode
 
         self.perturb_prob = perturb_prob
         self.p_threshold = p_threshold
         self.pred_diff_threshold = pred_diff_threshold
 
-    def __search_Markov_blanket(self, df: pd.DataFrame,
-                                target_node: str, nodes: List[str]):
+    def __search_Markov_blanket(
+        self, df: pd.DataFrame, target_node: str, nodes: List[str]
+    ):
         """
         Search the Markov blanket of target_node inside nodes.
         """
@@ -84,8 +95,9 @@ class PGMExplainer(_BaseExplainer):
             for node in nodes:
                 evidence = MB.copy()
                 evidence.remove(node)
-                _, p = chi_square_pgm(target_node, node, evidence,
-                                      df[nodes + [target_node]])
+                _, p = chi_square_pgm(
+                    target_node, node, evidence, df[nodes + [target_node]]
+                )
                 if p > self.p_threshold:
                     MB.remove(node)
                     count = 0
@@ -94,8 +106,14 @@ class PGMExplainer(_BaseExplainer):
                     if count == len(MB):  # No nodes inside MB can be removed.
                         return MB
 
-    def __get_perturb_diff(self, x: torch.Tensor, edge_index: torch.Tensor,
-                           num_samples: int, subset = None, forward_kwargs: dict = {}):
+    def __get_perturb_diff(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        num_samples: int,
+        subset=None,
+        forward_kwargs: dict = {},
+    ):
         """
         Get a [num_samples x n x 2] int array, where the last dim stores
         0. whether a node is perturbed
@@ -112,27 +130,32 @@ class PGMExplainer(_BaseExplainer):
         Returns:
             sample (np.ndarray, [num_samples x n x 2])
         """
-        pred_prob = self._predict(x, edge_index, return_type='prob',
-                                  forward_kwargs=forward_kwargs)
+        pred_prob = self._predict(
+            x, edge_index, return_type="prob", forward_kwargs=forward_kwargs
+        )
         pred_label = pred_prob.argmax(dim=-1)
 
         if self.explain_graph:  # graph-level explanation
             n = x.shape[0]
-            sample = np.zeros((num_samples, n+1), dtype=int)
+            sample = np.zeros((num_samples, n + 1), dtype=int)
             sample_pred_diff = np.zeros(num_samples)
 
             for iter_idx in range(num_samples):
                 # Perturb the features of randomly selected nodes
-                x_pert, pert_mask = \
-                    PGM_perturb_node_features(x, perturb_prob=self.perturb_prob,
-                                          perturb_mode=self.perturb_mode)
+                x_pert, pert_mask = PGM_perturb_node_features(
+                    x, perturb_prob=self.perturb_prob, perturb_mode=self.perturb_mode
+                )
                 # pert_mask stores whether a node is perturbed
                 pert_mask = pert_mask.numpy().astype(int)
                 sample[iter_idx, :n] = pert_mask
 
                 # Compute the prediction after perturbation of features
-                pred_prob_pert = self._predict(x_pert, edge_index, return_type='prob',
-                                               forward_kwargs=forward_kwargs)
+                pred_prob_pert = self._predict(
+                    x_pert,
+                    edge_index,
+                    return_type="prob",
+                    forward_kwargs=forward_kwargs,
+                )
                 # pred_diff_mask stores whether the pert causes significant difference
                 pred_diff = pred_prob[pred_label] - pred_prob_pert[pred_label]
                 sample_pred_diff[iter_idx] = pred_diff
@@ -149,9 +172,11 @@ class PGMExplainer(_BaseExplainer):
 
             for iter_idx in range(num_samples):
                 # Perturb the features of randomly selected nodes
-                sub_x_pert, pert_mask = \
-                    PGM_perturb_node_features(sub_x, perturb_prob=self.perturb_prob,
-                                          perturb_mode=self.perturb_mode)
+                sub_x_pert, pert_mask = PGM_perturb_node_features(
+                    sub_x,
+                    perturb_prob=self.perturb_prob,
+                    perturb_mode=self.perturb_mode,
+                )
                 x_pert = x.clone()
                 x_pert[subset] = sub_x_pert
                 # pert_mask stores whether a node is perturbed
@@ -159,21 +184,34 @@ class PGMExplainer(_BaseExplainer):
                 sample[iter_idx, :sub_n, 0] = pert_mask
 
                 # Compute the prediction after perturbation of features
-                pred_prob_pert = self._predict(x_pert, edge_index, return_type='prob',
-                                            forward_kwargs=forward_kwargs)
+                pred_prob_pert = self._predict(
+                    x_pert,
+                    edge_index,
+                    return_type="prob",
+                    forward_kwargs=forward_kwargs,
+                )
                 # pred_diff_mask stores whether the pert causes significant difference
-                pred_diff = pred_prob[subset, pred_label[subset]] - \
-                    pred_prob_pert[subset, pred_label[subset]]
+                pred_diff = (
+                    pred_prob[subset, pred_label[subset]]
+                    - pred_prob_pert[subset, pred_label[subset]]
+                )
                 pred_diff_mask = pred_diff > self.pred_diff_threshold
                 pred_diff_mask = pred_diff_mask.cpu().numpy().astype(int)
                 sample[iter_idx, :sub_n, 1] = pred_diff_mask
 
         return sample
 
-    def get_explanation_node(self, node_idx: int, x: torch.Tensor,
-                             edge_index: torch.Tensor, y = None, num_hops: int = None,
-                             forward_kwargs: dict = {},
-                             top_k_nodes: int = None, no_child: bool = True):
+    def get_explanation_node(
+        self,
+        node_idx: int,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        y=None,
+        num_hops: int = None,
+        forward_kwargs: dict = {},
+        top_k_nodes: int = None,
+        no_child: bool = True,
+    ):
         """
         Explain a node prediction.
 
@@ -199,18 +237,23 @@ class PGMExplainer(_BaseExplainer):
                 3. the `edge_index` mask indicating which edges were preserved
         """
         if self.explain_graph:
-            raise Exception('For graph-level explanations use `get_explanation_graph`.')
+            raise Exception("For graph-level explanations use `get_explanation_graph`.")
 
         num_hops = self.L if num_hops is None else num_hops
 
-        khop_info = subset, edge_index, _, _ = \
-            k_hop_subgraph(node_idx, num_hops, edge_index,
-                           relabel_nodes=True, num_nodes=x.shape[0])
+        khop_info = subset, edge_index, _, _ = k_hop_subgraph(
+            node_idx, num_hops, edge_index, relabel_nodes=True, num_nodes=x.shape[0]
+        )
         n = x.shape[0]
 
         # Get pert, diff sample
-        sample = self.__get_perturb_diff(x, edge_index, num_samples=self.num_samples,
-                                         subset=subset, forward_kwargs=forward_kwargs)
+        sample = self.__get_perturb_diff(
+            x,
+            edge_index,
+            num_samples=self.num_samples,
+            subset=subset,
+            forward_kwargs=forward_kwargs,
+        )
 
         # For each sample, compute a combined value: 10 * pert + pred_diff + 1
         # Here pert = 1 if the node's features have been perturbed
@@ -227,7 +270,9 @@ class PGMExplainer(_BaseExplainer):
         p_values = []
         dependent_neighbors = []
         for node in neighbors:
-            _, p, _ = chi_square(ind_ori_to_sub[node], ind_ori_to_sub[node_idx], [], df, boolean=False)
+            _, p, _ = chi_square(
+                ind_ori_to_sub[node], ind_ori_to_sub[node_idx], [], df, boolean=False
+            )
             p_values.append(p)
             if p < self.p_threshold:
                 dependent_neighbors.append(node)
@@ -260,7 +305,7 @@ class PGMExplainer(_BaseExplainer):
                     pgm_no_target.add_edge(node, target_node)
 
             # Create the PGM
-            #pgm = BayesianModel()
+            # pgm = BayesianModel()
             pgm = BayesianNetwork()
             for node in pgm_no_target.nodes():
                 pgm.add_node(node)
@@ -282,13 +327,13 @@ class PGMExplainer(_BaseExplainer):
             est = HillClimbSearch(df_ex, scoring_method=BicScore(df_ex))
             pgm_w_target_explanation = est.estimate()
 
-            # Create the PGM    
-            #pgm = BayesianModel()
+            # Create the PGM
+            # pgm = BayesianModel()
             pgm = BayesianNetwork()
             for node in pgm_w_target_explanation.nodes():
                 pgm.add_node(node)
             for edge in pgm_w_target_explanation.edges():
-                pgm.add_edge(edge[0],edge[1])
+                pgm.add_edge(edge[0], edge[1])
 
             # Fit the PGM
             df_ex = df[sub_nodes].copy()
@@ -298,14 +343,11 @@ class PGMExplainer(_BaseExplainer):
             pgm.fit(df_ex)
 
         pgm_nodes = [int(node) for node in pgm.nodes()]
-        #print('pgm nodes', pgm_nodes)
+        # print('pgm nodes', pgm_nodes)
         node_imp = torch.zeros(n)
         node_imp[pgm_nodes] = 1
 
-        exp = Explanation(
-            node_imp = node_imp[subset],
-            node_idx = node_idx
-        )
+        exp = Explanation(node_imp=node_imp[subset], node_idx=node_idx)
 
         # Store PGM in the Explanation
         exp.pgm = pgm
@@ -314,10 +356,14 @@ class PGMExplainer(_BaseExplainer):
 
         return exp
 
-    def get_explanation_graph(self, x: torch.Tensor, edge_index: torch.Tensor,
-                              y = None,
-                              forward_kwargs: dict = {},
-                              top_k_nodes: int = None):
+    def get_explanation_graph(
+        self,
+        x: torch.Tensor,
+        edge_index: torch.Tensor,
+        y=None,
+        forward_kwargs: dict = {},
+        top_k_nodes: int = None,
+    ):
         """
         Explain a whole-graph prediction.
 
@@ -336,19 +382,22 @@ class PGMExplainer(_BaseExplainer):
                 exp['node_imp'] (torch.Tensor, [m]): k-hop node importance
         """
         if not self.explain_graph:
-            raise Exception('For node-level explanations use `get_explanation_node`.')
+            raise Exception("For node-level explanations use `get_explanation_node`.")
 
         n = x.shape[0]
-        top_k_nodes = n // 20 if top_k_nodes is None else min(top_k_nodes, n-1)
+        top_k_nodes = n // 20 if top_k_nodes is None else min(top_k_nodes, n - 1)
 
         target = n  # pred_diff_mask is stored at column n
 
         # Round 1: all nodes may be perturbed, half the number of samples
 
         # Get pert, diff sample
-        sample = self.__get_perturb_diff(x, edge_index,
-                                         num_samples=self.num_samples//2,
-                                         forward_kwargs=forward_kwargs)
+        sample = self.__get_perturb_diff(
+            x,
+            edge_index,
+            num_samples=self.num_samples // 2,
+            forward_kwargs=forward_kwargs,
+        )
         df = pd.DataFrame(sample)
 
         # Compute p-values and pick the candidate nodes to perturb
@@ -356,22 +405,26 @@ class PGMExplainer(_BaseExplainer):
         for node in range(n):
             _, p, _ = chi_square(node, target, [], df, boolean=False)
             p_values.append(p)
-        num_candidates = min(top_k_nodes*4, n-1)
+        num_candidates = min(top_k_nodes * 4, n - 1)
         candidate_nodes = np.argpartition(p_values, num_candidates)[0:num_candidates]
 
         # Round 2: only candidate nodes may be perturbed, the full number of samples
 
         # Get pert, diff sample
-        sample = self.__get_perturb_diff(x, edge_index, num_samples=self.num_samples,
-                                         subset=candidate_nodes,
-                                         forward_kwargs=forward_kwargs)
+        sample = self.__get_perturb_diff(
+            x,
+            edge_index,
+            num_samples=self.num_samples,
+            subset=candidate_nodes,
+            forward_kwargs=forward_kwargs,
+        )
         df = pd.DataFrame(sample)
 
         # Compute p-values and pick the nodes for PGM explanation
         p_values = []
         dependent_nodes = []
         for node in range(n):
-            _, p,_ = chi_square(node, target, [], df, boolean=False)
+            _, p, _ = chi_square(node, target, [], df, boolean=False)
             p_values.append(p)
             if p < self.p_threshold:
                 dependent_nodes.append(node)
@@ -380,11 +433,9 @@ class PGMExplainer(_BaseExplainer):
         node_imp = torch.zeros(n)
         node_imp[ind_top_k] = 1
 
-        exp = Explanation(
-            node_imp = node_imp
-        )
-    
-        exp.set_whole_graph(Data(x=x, edge_index = edge_index))
+        exp = Explanation(node_imp=node_imp)
+
+        exp.set_whole_graph(Data(x=x, edge_index=edge_index))
         return exp
 
     def get_explanation_link(self):

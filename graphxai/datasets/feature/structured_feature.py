@@ -10,19 +10,35 @@ def _generate_hypercube(samples, dimensions, rng):
     Returns distinct binary samples of length dimensions.
     """
     if dimensions > 30:
-        return np.hstack([rng.randint(2, size=(samples, dimensions - 30)),
-                          _generate_hypercube(samples, 30, rng)])
-    out = sample_without_replacement(2 ** dimensions, samples,
-                                     random_state=rng).astype(dtype='>u4', copy=False)
-    out = np.unpackbits(out.view('>u1')).reshape((-1, 32))[:, -dimensions:]
+        return np.hstack(
+            [
+                rng.randint(2, size=(samples, dimensions - 30)),
+                _generate_hypercube(samples, 30, rng),
+            ]
+        )
+    out = sample_without_replacement(2**dimensions, samples, random_state=rng).astype(
+        dtype=">u4", copy=False
+    )
+    out = np.unpackbits(out.view(">u1")).reshape((-1, 32))[:, -dimensions:]
     return out
 
 
-def make_structured_feature(y: torch.Tensor, n_features=5, n_informative=2,
-                            n_redundant=0, n_repeated=0, n_clusters_per_class=2,
-                            unique_explanation=True, flip_y=0.01,
-                            class_sep=1.0, hypercube=True, shift=0.0, scale=1.0,
-                            shuffle=True, seed=None):
+def make_structured_feature(
+    y: torch.Tensor,
+    n_features=5,
+    n_informative=2,
+    n_redundant=0,
+    n_repeated=0,
+    n_clusters_per_class=2,
+    unique_explanation=True,
+    flip_y=0.01,
+    class_sep=1.0,
+    hypercube=True,
+    shift=0.0,
+    scale=1.0,
+    shuffle=True,
+    seed=None,
+):
     """This function is based on sklearn.datasets.make_classification.
 
     Generate structured features for the given labels.
@@ -148,15 +164,18 @@ def make_structured_feature(y: torch.Tensor, n_features=5, n_informative=2,
 
     # Count features, clusters and samples
     if n_informative + n_redundant + n_repeated > n_features:
-        raise ValueError("Number of informative, redundant and repeated "
-                         "features must sum to less than the number of total"
-                         " features")
+        raise ValueError(
+            "Number of informative, redundant and repeated "
+            "features must sum to less than the number of total"
+            " features"
+        )
     # Use log2 to avoid overflow errors
     if n_informative < np.log2(n_classes * n_clusters_per_class):
         msg = "n_classes({}) * n_clusters_per_class({}) must be"
         msg += " smaller or equal 2**n_informative({})={}"
-        raise ValueError(msg.format(n_classes, n_clusters_per_class,
-                                    n_informative, 2**n_informative))
+        raise ValueError(
+            msg.format(n_classes, n_clusters_per_class, n_informative, 2**n_informative)
+        )
 
     n_useless = n_features - n_informative - n_redundant - n_repeated
     n_clusters = n_classes * n_clusters_per_class
@@ -174,8 +193,9 @@ def make_structured_feature(y: torch.Tensor, n_features=5, n_informative=2,
     X = np.zeros((n_samples, n_features))
 
     # Build the polytope whose vertices become cluster centroids
-    centroids = _generate_hypercube(n_clusters, n_informative,
-                                    rng).astype(float, copy=False)
+    centroids = _generate_hypercube(n_clusters, n_informative, rng).astype(
+        float, copy=False
+    )
 
     # print('centroids', centroids)
     # print('n_clusters', n_clusters)
@@ -201,19 +221,20 @@ def make_structured_feature(y: torch.Tensor, n_features=5, n_informative=2,
         X_k[...] = np.dot(X_k, A)  # introduce random covariance
 
         X_k += centroid  # shift the cluster to a vertex
-        #print('k', k)
+        # print('k', k)
 
     # Create redundant features
     if n_redundant > 0:
         B = 2 * rng.rand(n_informative, n_redundant) - 1
-        X[:, n_informative:n_informative + n_redundant] = \
-            np.dot(X[:, :n_informative], B)
+        X[:, n_informative : n_informative + n_redundant] = np.dot(
+            X[:, :n_informative], B
+        )
 
     # Repeat some features
     if n_repeated > 0:
         n = n_informative + n_redundant
         indices = ((n - 1) * rng.rand(n_repeated) + 0.5).astype(np.intp)
-        X[:, n:n + n_repeated] = X[:, indices]
+        X[:, n : n + n_repeated] = X[:, indices]
 
     # Fill useless features
     if n_useless > 0:
@@ -238,40 +259,40 @@ def make_structured_feature(y: torch.Tensor, n_features=5, n_informative=2,
         feature_mask = np.zeros(n_features, dtype=bool)
         feature_mask[:n_informative] = True
 
-    #print('y before shuffle', y)
+    # print('y before shuffle', y)
 
     if shuffle:
         # Randomly permute features
         indices = np.arange(n_features)
         rng.shuffle(indices)
         X[:, :] = X[:, indices]
-        #y = np.array([y[i] for i in indices])
+        # y = np.array([y[i] for i in indices])
         if unique_explanation:
             feature_mask[:] = feature_mask[indices]
 
-    #print('y', list(y))
+    # print('y', list(y))
     # Sort y and then assign to each spot in the tensor y
-    #unique_y = torch.sort(torch.unique(Yorg))
+    # unique_y = torch.sort(torch.unique(Yorg))
 
     unique_y = np.sort(np.unique(Yorg))
 
-    #print('y', y)
+    # print('y', y)
 
-    #print(unique_y)
-    #ysort = np.sort(y)
+    # print(unique_y)
+    # ysort = np.sort(y)
 
     Xnew = np.zeros_like(X)
-    
+
     for yval in unique_y:
         ingenerated = np.argwhere(y == yval).flatten()
-        #print('ingenerated', ingenerated)
+        # print('ingenerated', ingenerated)
         inorg = np.argwhere(Yorg == yval).flatten()
-        #print('inorg', inorg)
+        # print('inorg', inorg)
 
-        for gen, org in zip(ingenerated, inorg): # Move 
+        for gen, org in zip(ingenerated, inorg):  # Move
             Xnew[org, :] = X[gen, :]
 
-    #print(Xnew[:10, :])
+    # print(Xnew[:10, :])
 
     # Convert to tensor
     Xnew = torch.from_numpy(Xnew).float()

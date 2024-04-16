@@ -2,8 +2,8 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 from torch_geometric.nn import global_mean_pool
-# data loader
 from torch_geometric.data import DataLoader, Data
+
 
 class GCN(torch.nn.Module):
     def __init__(self, in_dim=None, hidden_dim=None, out_dim=None):
@@ -19,7 +19,7 @@ class GCN(torch.nn.Module):
         x = self.conv2(x, edge_index)
         x = F.relu(x)
 
-        x = global_mean_pool(x, batch) 
+        x = global_mean_pool(x, batch)
         x = self.lin(x)
         # sigmoid
         x = F.sigmoid(x)

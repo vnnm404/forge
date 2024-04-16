@@ -30,21 +30,35 @@ class BA_Houses:
         G.add_nodes_from(new_nodes)
 
         if house_option == 0:
-            edges = [(new_nodes[i], new_nodes[i+1]) for i in range(3)]
-            edges += [(new_nodes[-1], new_nodes[1]), (pivot, new_nodes[0]), (pivot, new_nodes[-1])]
+            edges = [(new_nodes[i], new_nodes[i + 1]) for i in range(3)]
+            edges += [
+                (new_nodes[-1], new_nodes[1]),
+                (pivot, new_nodes[0]),
+                (pivot, new_nodes[-1]),
+            ]
             G.add_edges_from(edges)
         elif house_option == 1:
-            edges = [(new_nodes[i], new_nodes[i+1]) for i in range(3)]
-            edges += [(new_nodes[0], new_nodes[-1]), (pivot, new_nodes[0]), (pivot, new_nodes[-1])]
+            edges = [(new_nodes[i], new_nodes[i + 1]) for i in range(3)]
+            edges += [
+                (new_nodes[0], new_nodes[-1]),
+                (pivot, new_nodes[0]),
+                (pivot, new_nodes[-1]),
+            ]
             G.add_edges_from(edges)
         else:
-            edges = [(new_nodes[i], new_nodes[i+1]) for i in range(3)]
-            edges += [(pivot, new_nodes[0]), (pivot, new_nodes[2]), (pivot, new_nodes[-1])]
+            edges = [(new_nodes[i], new_nodes[i + 1]) for i in range(3)]
+            edges += [
+                (pivot, new_nodes[0]),
+                (pivot, new_nodes[2]),
+                (pivot, new_nodes[-1]),
+            ]
             G.add_edges_from(edges)
 
         nodes = new_nodes + [pivot]
         for node in nodes:
-            self.node_attr[node] = encode_num  # Encoding number for final node attributes
+            self.node_attr[node] = (
+                encode_num  # Encoding number for final node attributes
+            )
             self.in_house.add(node)  # Add to house tracker
 
         return G, set(nodes), set(edges)
@@ -69,18 +83,23 @@ class BA_Houses:
             else:
                 train_mask[i] = True
 
-        y = torch.tensor([1 if i in self.in_house else 0 for i in range(self.n)],
-                         dtype=torch.long)
+        y = torch.tensor(
+            [1 if i in self.in_house else 0 for i in range(self.n)], dtype=torch.long
+        )
 
-        data = Data(y=y, edge_index=edge_index.t().contiguous(),
-                    train_mask = train_mask, test_mask = test_mask)
+        data = Data(
+            y=y,
+            edge_index=edge_index.t().contiguous(),
+            train_mask=train_mask,
+            test_mask=test_mask,
+        )
 
         return data
 
-    def make_BA_shapes(self, num_houses = 1):
+    def make_BA_shapes(self, num_houses=1):
         start_n = self.n - (4 * num_houses)
-        G = nx.barabasi_albert_graph(start_n, self.m, seed = self.seed)
-        self.node_attr = torch.zeros(self.n, dtype = torch.long)
+        G = nx.barabasi_albert_graph(start_n, self.m, seed=self.seed)
+        self.node_attr = torch.zeros(self.n, dtype=torch.long)
 
         # Set num_houses
         self.num_houses = num_houses
@@ -98,6 +117,12 @@ class BA_Houses:
 
     def draw(self, G):
         pos = nx.kamada_kawai_layout(G)
-        nx.draw(G, pos, node_color = self.node_attr, node_size = 400,
-                cmap = plt.cm.Blues, arrows = False)
+        nx.draw(
+            G,
+            pos,
+            node_color=self.node_attr,
+            node_size=400,
+            cmap=plt.cm.Blues,
+            arrows=False,
+        )
         plt.show()

@@ -1,6 +1,7 @@
 """
 This code is modified from networkx.
 """
+
 import torch
 import random
 import numpy as np
@@ -8,8 +9,10 @@ import networkx as nx
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-def swap(G, subset: list = None, nswap: int = 1,
-         max_tries: int = 100, seed: int = None):
+
+def swap(
+    G, subset: list = None, nswap: int = 1, max_tries: int = 100, seed: int = None
+):
     """Swap two edges in the subgraph while keeping the node degrees fixed.
 
     A double-edge swap removes two randomly chosen edges u-v and x-y
@@ -67,22 +70,22 @@ def swap(G, subset: list = None, nswap: int = 1,
         #     cdf.append(cdf[i] + distribution[i] / psum)
 
         # Tensorized implementation
-        #cdf = [0.0]  # torch.Tensor([0.0])
-        #dist_tensor = torch.from_numpy(np.asarray(distribution)).to(device)
+        # cdf = [0.0]  # torch.Tensor([0.0])
+        # dist_tensor = torch.from_numpy(np.asarray(distribution)).to(device)
         dist_tensor = torch.as_tensor(distribution).to(device)
-        #temp_dist = torch.zeros(len(distribution)).long().to(device)
+        # temp_dist = torch.zeros(len(distribution)).long().to(device)
         temp_dist = torch.zeros(len(distribution)).long().to(device)
         if subset is not None:
             temp_dist[subset] = dist_tensor[subset]
 
         psum = float(sum(temp_dist))
-        temp_dist = temp_dist/psum
+        temp_dist = temp_dist / psum
         # for i in range(0, len(temp_dist)):
         #     # import ipdb; ipdb.set_trace()
         #     cdf.append(cdf[i] + temp_dist[i].item())
-            # cdf = torch.cat((cdf, torch.Tensor([cdf[i]+temp_dist[i]])), dim=-1)
-        #return cdf  # .numpy()
-        return torch.cumsum(temp_dist, dim = 0).tolist()
+        # cdf = torch.cat((cdf, torch.Tensor([cdf[i]+temp_dist[i]])), dim=-1)
+        # return cdf  # .numpy()
+        return torch.cumsum(temp_dist, dim=0).tolist()
 
     # Initialize seed for random
     random.seed(seed)

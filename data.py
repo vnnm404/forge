@@ -6,24 +6,26 @@ import torch
 import networkx as nx
 import numpy as np
 
-def load_dataset(name='Benzene'):
-    if name == 'Benzene':
+
+def load_dataset(name="Benzene"):
+    if name == "Benzene":
         return Benzene()
     else:
         raise NotImplementedError(f"Dataset {name} is not implemented.")
 
+
 def graph_to_complex(g) -> HeteroData:
     hg = HeteroData()
-    
-    if hasattr(g, 'y'):
+
+    if hasattr(g, "y"):
         hg.y = g.y
 
     # transfer nodes and original edges
-    hg['node'].x = g.x
-    hg['node', 'to', 'node'].edge_index = g.edge_index
+    hg["node"].x = g.x
+    hg["node", "to", "node"].edge_index = g.edge_index
 
     # adding edge nodes, INFO: new edge-node for both directions
-    hg['edge_node'].x = g.edge_attr
+    hg["edge_node"].x = g.edge_attr
 
     num_edges = g.edge_index.shape[1]
     range_edges = torch.arange(num_edges)  # the id of the new edges
@@ -33,12 +35,16 @@ def graph_to_complex(g) -> HeteroData:
     # new edge index to original node to node edge index
     mapping = {1: {}, 2: {}, 3: {}, 4: {}}
 
-    hg['node', 'to', 'edge_node'].edge_index = torch.stack([source_nodes, range_edges], dim=0)
-    hg['edge_node', 'to', 'node'].edge_index = torch.stack([range_edges, target_nodes], dim=0)
+    hg["node", "to", "edge_node"].edge_index = torch.stack(
+        [source_nodes, range_edges], dim=0
+    )
+    hg["edge_node", "to", "node"].edge_index = torch.stack(
+        [range_edges, target_nodes], dim=0
+    )
 
     for i in range(num_edges):
         mapping[1][i] = i
-    
+
     for i in range(num_edges):
         mapping[2][i] = i
 
@@ -66,7 +72,7 @@ def graph_to_complex(g) -> HeteroData:
         # create cycle node
         cycle_length = len(cycle)
         cycle_feature = np.zeros((8,))
-        cycle_feature[cycle_length-1] = 1  # one-hot
+        cycle_feature[cycle_length - 1] = 1  # one-hot
         cycle_nodes.append(cycle_feature)
 
         # connect cycle_node to all nodes in the cycle
@@ -76,7 +82,7 @@ def graph_to_complex(g) -> HeteroData:
 
         # connect cycle_node to all edges in the cycle
         for j in range(cycle_length):
-            edge = (cycle[j], cycle[(j+1) % cycle_length])
+            edge = (cycle[j], cycle[(j + 1) % cycle_length])
             edge = (min(edge), max(edge))  # as edges are undirected in nx
             edge_index = edge_list.index(list(edge))
             cycle_node_to_edge_node.append([i, edge_index])
@@ -88,18 +94,23 @@ def graph_to_complex(g) -> HeteroData:
             c_t_e_counter += 1
             e_t_c_counter += 1
 
-    hg['cycle_node'].x = torch.tensor(np.array(cycle_nodes), dtype=torch.float32)
+    hg["cycle_node"].x = torch.tensor(np.array(cycle_nodes), dtype=torch.float32)
     # hg['cycle_node', 'to', 'node'].edge_index = torch.tensor(np.array(cycle_node_to_node), dtype=torch.long).t()
     # hg['node', 'to', 'cycle_node'].edge_index = torch.tensor(np.array(node_to_cycle_node), dtype=torch.long).t()
-    hg['cycle_node', 'to', 'edge_node'].edge_index = torch.tensor(np.array(cycle_node_to_edge_node), dtype=torch.long).t()
-    hg['edge_node', 'to', 'cycle_node'].edge_index = torch.tensor(np.array(edge_node_to_cycle_node), dtype=torch.long).t()
+    hg["cycle_node", "to", "edge_node"].edge_index = torch.tensor(
+        np.array(cycle_node_to_edge_node), dtype=torch.long
+    ).t()
+    hg["edge_node", "to", "cycle_node"].edge_index = torch.tensor(
+        np.array(edge_node_to_cycle_node), dtype=torch.long
+    ).t()
 
     return hg, mapping
+
 
 class ComplexDataset(Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
-        
+
     def __len__(self):
         return len(self.dataset)
 
@@ -109,44 +120,52 @@ class ComplexDataset(Dataset):
         hg = hg.to_homogeneous()
         return (hg, gt_explanation, mapping)
 
+
 def lift_dataset(dataset: GraphDataset) -> ComplexDataset:
-    '''
+    """
     Lifts the graphs in the dataset to higher order cell complexes.
-    '''
+    """
     return ComplexDataset(dataset)
 
-def load_dataset_as_complex(name='Benzene') -> ComplexDataset:
-    '''
+
+def load_dataset_as_complex(name="Benzene") -> ComplexDataset:
+    """
     Loads the dataset and converts it to a cell complex dataset.
-    '''
+    """
     return lift_dataset(load_dataset(name))
 
-def get_graph_data_loaders(dataset: GraphDataset, batch_size = 32) -> Tuple[DataLoader]:
-    '''
+
+def get_graph_data_loaders(dataset: GraphDataset, batch_size=32) -> Tuple[DataLoader]:
+    """
     Returns the data loaders for graph datasets.
-    '''
+    """
     return dataset.get_train_loader(batch_size)[0], dataset.get_test_loader()[0]
 
-def get_complex_data_loaders(dataset, batch_size = 32, train_frac=0.8) -> Tuple[DataLoader]:
-    '''
+
+def get_complex_data_loaders(
+    dataset, batch_size=32, train_frac=0.8
+) -> Tuple[DataLoader]:
+    """
     Returns the data loaders for cell complex datasets.
-    '''
+    """
     # data loader
-    train_data = [dataset[i][0] for i in range(int(len(dataset)*train_frac))]
-    test_data = [dataset[i][0] for i in range(int(len(dataset)*train_frac), len(dataset))]
-    
+    train_data = [dataset[i][0] for i in range(int(len(dataset) * train_frac))]
+    test_data = [
+        dataset[i][0] for i in range(int(len(dataset) * train_frac), len(dataset))
+    ]
+
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-    
+
     return train_loader, test_loader
 
+
 def get_data_loaders(
-    dataset: Union[GraphDataset, ComplexDataset],
-    batch_size = 32
+    dataset: Union[GraphDataset, ComplexDataset], batch_size=32
 ) -> Tuple[DataLoader]:
-    '''
+    """
     Returns the data loaders for the dataset.
-    '''
+    """
     if isinstance(dataset, GraphDataset):
         return get_graph_data_loaders(dataset, batch_size)
     elif isinstance(dataset, ComplexDataset):

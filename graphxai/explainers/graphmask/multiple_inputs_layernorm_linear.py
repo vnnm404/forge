@@ -7,7 +7,6 @@ from torch.nn import init
 
 
 class MultipleInputsLayernormLinear(torch.nn.Module):
-
     """
     Properly applies layernorm to a list of inputs, allowing for separate rescaling of potentially unnormalized components.
     This is inspired by the implementation of layer norm for LSTM from the original paper.
@@ -15,7 +14,14 @@ class MultipleInputsLayernormLinear(torch.nn.Module):
 
     components = None
 
-    def __init__(self, input_dims, output_dim, init_type="xavier", force_output_dim=None, requires_grad=True):
+    def __init__(
+        self,
+        input_dims,
+        output_dim,
+        init_type="xavier",
+        force_output_dim=None,
+        requires_grad=True,
+    ):
         super(MultipleInputsLayernormLinear, self).__init__()
         self.input_dims = input_dims
         self.output_dim = output_dim if force_output_dim is None else force_output_dim
@@ -43,7 +49,7 @@ class MultipleInputsLayernormLinear(torch.nn.Module):
         fan_in = sum(self.input_dims)
 
         std = math.sqrt(2.0 / float(fan_in + self.output_dim))
-        a = math.sqrt(3.0) * std # Calculate uniform bounds from standard deviation
+        a = math.sqrt(3.0) * std  # Calculate uniform bounds from standard deviation
 
         for transform in self.transforms:
             if self.init_type == "xavier":
@@ -70,4 +76,3 @@ class MultipleInputsLayernormLinear(torch.nn.Module):
             output = output + result
 
         return output / self.components
-

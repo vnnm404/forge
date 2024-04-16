@@ -5,7 +5,6 @@ from torch.nn import init
 
 
 class XavierLinear(torch.nn.Module):
-
     """
     Linear transform initialized with Xavier uniform
     """
@@ -22,7 +21,7 @@ class XavierLinear(torch.nn.Module):
 
     def reset_parameters(self):
         std = math.sqrt(2.0 / float(self.input_dim + self.output_dim))
-        a = math.sqrt(3.0) * std # Calculate uniform bounds from standard deviation
+        a = math.sqrt(3.0) * std  # Calculate uniform bounds from standard deviation
 
         init._no_grad_uniform_(self.W.weight, -a, a)
 

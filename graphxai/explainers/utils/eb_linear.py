@@ -2,6 +2,7 @@ import torch
 from torch.autograd import Function
 from torch.autograd import Variable
 
+
 class EBLinear(Function):
     # Note that both forward and backward are @staticmethods
     @staticmethod
@@ -25,10 +26,14 @@ class EBLinear(Function):
         #       .format('pos' if torch.use_pos_weights else 'neg', grad_output.sum().data[0]))
 
         # Enforce that weights are non-negative
-        weight = weight.clamp(min=0) if torch.use_pos_weights else weight.clamp(max=0).abs()
+        weight = (
+            weight.clamp(min=0) if torch.use_pos_weights else weight.clamp(max=0).abs()
+        )
 
-        input.data = input.data - input.data.min() if input.data.min() < 0 else input.data
-        grad_output /= input.mm(weight.t()).abs() + 1e-10 # normalize
+        input.data = (
+            input.data - input.data.min() if input.data.min() < 0 else input.data
+        )
+        grad_output /= input.mm(weight.t()).abs() + 1e-10  # normalize
         ### stop EB-SPECIFIC CODE  ###
 
         grad_input = grad_weight = grad_bias = None
@@ -47,6 +52,5 @@ class EBLinear(Function):
             grad_weight = grad_output.t().mm(input)
         if bias is not None and ctx.needs_input_grad[2]:
             grad_bias = grad_output.sum(0).squeeze(0)
-
 
         return grad_input, grad_weight, grad_bias

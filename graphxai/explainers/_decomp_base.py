@@ -11,9 +11,11 @@ from torch_geometric.utils import k_hop_subgraph as subgraph
 
 from ._base import _BaseExplainer
 
+
 class GNNPool(nn.Module):
     def __init__(self):
         super().__init__()
+
 
 # class _BaseDecomposition(_BaseExplainer):
 #     '''
@@ -31,7 +33,7 @@ class GNNPool(nn.Module):
 #             return -1
 #         else:
 #             return self.L
-    
+
 #     def set_graph_attr(self,
 #                 x: Tensor,
 #                 edge_index: Tensor,
@@ -170,10 +172,11 @@ class GNNPool(nn.Module):
 
 #         return walk_indices_list
 
+
 class _BaseDecomposition(_BaseExplainer):
 
     def __init__(self, model: nn.Module):
-        super().__init__(model=model) # Will set self.model = model
+        super().__init__(model=model)  # Will set self.model = model
         # Other properties: self.L (number of layers)
 
     @property
@@ -182,22 +185,20 @@ class _BaseDecomposition(_BaseExplainer):
             return -1
         else:
             return self.L
-    
-    def set_graph_attr(self,
-                x: Tensor,
-                edge_index: Tensor,
-                **kwargs
-                ):
+
+    def set_graph_attr(self, x: Tensor, edge_index: Tensor, **kwargs):
         self.num_edges = edge_index.shape[1]
         self.num_nodes = x.shape[0]
         self.device = x.device
 
-    def extract_step(self, 
-            x: Tensor, 
-            edge_index: Tensor, 
-            detach: bool = True, 
-            split_fc: bool = False, 
-            forward_kwargs: dict = {}):
+    def extract_step(
+        self,
+        x: Tensor,
+        edge_index: Tensor,
+        detach: bool = True,
+        split_fc: bool = False,
+        forward_kwargs: dict = {},
+    ):
 
         layer_extractor = []
         hooks = []
@@ -209,7 +210,9 @@ class _BaseDecomposition(_BaseExplainer):
         def forward_hook(module: nn.Module, input: Tuple[Tensor], output: Tensor):
             # input contains x and edge_index
             if detach:
-                layer_extractor.append((module, input[0].clone().detach(), output.clone().detach()))
+                layer_extractor.append(
+                    (module, input[0].clone().detach(), output.clone().detach())
+                )
             else:
                 layer_extractor.append((module, input[0], output))
 
@@ -223,35 +226,44 @@ class _BaseDecomposition(_BaseExplainer):
 
         # --- divide layer sets ---
 
-        print('layer extractor', [layer_extractor[i][0] for i in range(len(layer_extractor))])
+        print(
+            "layer extractor",
+            [layer_extractor[i][0] for i in range(len(layer_extractor))],
+        )
 
         walk_steps = []
         fc_steps = []
         pool_flag = False
-        step = {'input': None, 'module': [], 'output': None}
+        step = {"input": None, "module": [], "output": None}
         for layer in layer_extractor:
             if isinstance(layer[0], MessagePassing) or isinstance(layer[0], GNNPool):
                 if isinstance(layer[0], GNNPool):
                     pool_flag = True
-                if step['module'] and step['input'] is not None:
+                if step["module"] and step["input"] is not None:
                     walk_steps.append(step)
-                step = {'input': layer[1], 'module': [], 'output': None}
+                step = {"input": layer[1], "module": [], "output": None}
             if pool_flag and split_fc and isinstance(layer[0], nn.Linear):
-                if step['module']:
+                if step["module"]:
                     fc_steps.append(step)
-                step = {'input': layer[1], 'module': [], 'output': None}
-            step['module'].append(layer[0])
-            step['output'] = layer[2]
+                step = {"input": layer[1], "module": [], "output": None}
+            step["module"].append(layer[0])
+            step["output"] = layer[2]
 
         for walk_step in walk_steps:
-            for_nn = hasattr(walk_step['module'][0], 'nn') and walk_step['module'][0].nn is not None
-            for_lin = hasattr(walk_step['module'][0], 'lin') and walk_step['module'][0].lin is not None
+            for_nn = (
+                hasattr(walk_step["module"][0], "nn")
+                and walk_step["module"][0].nn is not None
+            )
+            for_lin = (
+                hasattr(walk_step["module"][0], "lin")
+                and walk_step["module"][0].lin is not None
+            )
             if for_nn or for_lin:
                 # We don't allow any outside nn during message flow process in GINs
-                walk_step['module'] = [walk_step['module'][0]]
+                walk_step["module"] = [walk_step["module"][0]]
 
         if split_fc:
-            if step['module']:
+            if step["module"]:
                 fc_steps.append(step)
             return walk_steps, fc_steps
         else:
@@ -259,12 +271,13 @@ class _BaseDecomposition(_BaseExplainer):
 
         return walk_steps, fc_step
 
-    def walks_pick(self,
-                   edge_index: Tensor,
-                   pick_edge_indices: List,
-                   walk_indices: List=[],
-                   num_layers=0
-                   ):
+    def walks_pick(
+        self,
+        edge_index: Tensor,
+        pick_edge_indices: List,
+        walk_indices: List = [],
+        num_layers=0,
+    ):
         walk_indices_list = []
         for edge_idx in pick_edge_indices:
 
@@ -272,14 +285,18 @@ class _BaseDecomposition(_BaseExplainer):
             walk_indices.append(edge_idx)
             _, new_src = src, tgt = edge_index[:, edge_idx].cpu()
             # import ipdb; ipdb.set_trace()
-            next_edge_indices = np.array((edge_index[0, :].cpu() == new_src).nonzero().view(-1))
+            next_edge_indices = np.array(
+                (edge_index[0, :].cpu() == new_src).nonzero().view(-1)
+            )
 
             # Finding next edge
             if len(walk_indices) >= num_layers:
                 # return one walk
                 walk_indices_list.append(walk_indices.copy())
             else:
-                walk_indices_list += self.walks_pick(edge_index, next_edge_indices, walk_indices, num_layers)
+                walk_indices_list += self.walks_pick(
+                    edge_index, next_edge_indices, walk_indices, num_layers
+                )
 
             # remove the last edge
             walk_indices.pop(-1)

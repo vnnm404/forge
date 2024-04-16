@@ -120,12 +120,10 @@ def chisquare(f_obs, f_exp=None, ddof=0, axis=0):
     (array([ 3.5 ,  9.25]), array([ 0.62338763,  0.09949846]))
 
     """
-    return power_divergence(f_obs, f_exp=f_exp, ddof=ddof, axis=axis,
-                            lambda_=1)
+    return power_divergence(f_obs, f_exp=f_exp, ddof=ddof, axis=axis, lambda_=1)
 
 
-Power_divergenceResult = namedtuple('Power_divergenceResult',
-                                    ('statistic', 'pvalue'))
+Power_divergenceResult = namedtuple("Power_divergenceResult", ("statistic", "pvalue"))
 
 
 def _count(a, axis=None):
@@ -135,7 +133,7 @@ def _count(a, axis=None):
     This function behaves like np.ma.count(), but is much faster
     for ndarrays.
     """
-    if hasattr(a, 'count'):
+    if hasattr(a, "count"):
         num = a.count(axis=axis)
         if isinstance(num, np.ndarray) and num.ndim == 0:
             # In some cases, the `count` method returns a scalar array (e.g.
@@ -309,7 +307,7 @@ def power_divergence(f_obs, f_exp=None, ddof=0, axis=0, lambda_=None):
     else:
         # Ignore 'invalid' errors so the edge case of a data set with length 0
         # is handled without spurious warnings.
-        with np.errstate(invalid='ignore'):
+        with np.errstate(invalid="ignore"):
             f_exp = f_obs.mean(axis=axis, keepdims=True)
 
     # `terms` is the array of terms that are summed along `axis` to create
@@ -317,7 +315,7 @@ def power_divergence(f_obs, f_exp=None, ddof=0, axis=0, lambda_=None):
     # cases of lambda_.
     if lambda_ == 1:
         # Pearson's chi-squared statistic
-        terms = (f_obs.astype(np.float64) - f_exp)**2 / f_exp
+        terms = (f_obs.astype(np.float64) - f_exp) ** 2 / f_exp
     elif lambda_ == 0:
         # Log-likelihood ratio (i.e. G-test)
         terms = 2.0 * special.xlogy(f_obs, f_obs / f_exp)
@@ -326,7 +324,7 @@ def power_divergence(f_obs, f_exp=None, ddof=0, axis=0, lambda_=None):
         terms = 2.0 * special.xlogy(f_exp, f_exp / f_obs)
     else:
         # General Cressie-Read power divergence.
-        terms = f_obs * ((f_obs / f_exp)**lambda_ - 1)
+        terms = f_obs * ((f_obs / f_exp) ** lambda_ - 1)
         terms /= 0.5 * lambda_ * (lambda_ + 1)
 
     stat = terms.sum(axis=axis)

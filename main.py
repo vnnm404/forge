@@ -56,7 +56,21 @@ if __name__ == "__main__":
         explanation_epochs=args.explanation_epochs,
         explanation_lr=args.explanation_lr,
     )
-
+    
+    if args.explanation_algorithm == "PGExplainer":
+        # PGExplainer needs to be trained first
+        print("Training PGExplainer...")
+        for epoch in range(args.explanation_epochs):
+            for i in range(args.num_explanations):
+                data = dataset[i][0]
+                explainer.algorithm.train(
+                    epoch=epoch,
+                    model=model,
+                    x=data.x,
+                    edge_index=data.edge_index,
+                    batch=data.batch,
+                )
+        print("PGExplainer trained.")
     pred_explanations, ground_truth_explanations = explain_dataset(
         explainer, dataset, num=args.num_explanations
     )
@@ -73,7 +87,9 @@ if __name__ == "__main__":
     if args.save_explanation_dir:
         # save metrics to json
         metrics_path = os.path.join(
-            args.save_explanation_dir, f"{args.exp_name}", f"{time()}_graph_metrics.json"
+            args.save_explanation_dir,
+            f"{args.exp_name}",
+            f"{time()}_graph_metrics.json",
         )
         # create directory if it doesn't exist
         os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
@@ -129,6 +145,20 @@ if __name__ == "__main__":
         explanation_lr=args.explanation_lr,
     )
 
+    if args.explanation_algorithm == "PGExplainer":
+        # PGExplainer needs to be trained first
+        print("Training PGExplainer...")
+        for epoch in range(args.explanation_epochs):
+            for i in range(args.num_explanations):
+                data = complex_dataset[i][0]
+                explainer.algorithm.train(
+                    epoch=epoch,
+                    model=model,
+                    x=data.x,
+                    edge_index=data.edge_index,
+                    batch=data.batch,
+                )
+
     pred_explanations, ground_truth_explanations = explain_dataset(
         explainer, complex_dataset, num=args.num_explanations
     )
@@ -143,7 +173,9 @@ if __name__ == "__main__":
     if args.save_explanation_dir:
         # save metrics to json
         metrics_path = os.path.join(
-            args.save_explanation_dir, f"{args.exp_name}", f"{time()}_complex_metrics.json"
+            args.save_explanation_dir,
+            f"{args.exp_name}",
+            f"{time()}_complex_metrics.json",
         )
         os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
         with open(metrics_path, "w") as f:

@@ -49,7 +49,7 @@ def load_args():
         type=str,
         default="GNNExplainer",
         help="The explanation algorithm to use",
-        choices=["GNNExplainer"],
+        choices=["GNNExplainer", "PGExplainer", "Captum"],
     )
     parser.add_argument(
         "--batch_size", type=int, default=64, help="The batch size for training"

@@ -7,7 +7,7 @@ python3 main.py \
     --in_dim 14 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --explanation_algorithm GNNExplainer \
+    --explanation_algorithm Captum \
     --graph_epochs 100 \
     --complex_epochs 50 \
     --explanation_epochs 400 \

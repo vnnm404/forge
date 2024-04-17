@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Run the benzene experiment with the GCN explainer
+# Run the benzene experiment with the PGExplainer
 python3 main.py \
     --dataset Benzene \
     --model GCN \
     --in_dim 14 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --explanation_algorithm GNNExplainer \
+    --explanation_algorithm PGExplainer \
     --graph_epochs 100 \
     --complex_epochs 50 \
     --explanation_epochs 400 \

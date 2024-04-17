@@ -14,12 +14,14 @@ import torch
 import os
 import json
 
+
 if __name__ == "__main__":
     ##### DATA LOAD AND PREPROCESSING #####
     print("Loading dataset...")
     dataset = load_dataset(args.dataset)
     train_loader, test_loader = get_data_loaders(dataset, batch_size=args.batch_size)
     print("Dataset loaded.")
+
     ##### MODEL #####
     model = GCN(
         in_dim=args.in_dim,
@@ -27,8 +29,8 @@ if __name__ == "__main__":
         out_dim=args.out_dim,
     )
     model.to(device)
+
     ##### TRAIN/LOAD #####
-    # if available, load model, else train model
     model_path = os.path.join(args.save_dir, f"{args.exp_name}_graphs.pth")
     try:
         os.path.exists(model_path)
@@ -46,6 +48,7 @@ if __name__ == "__main__":
     print(
         f"Accuracy: {accuracy}\n Precision: {precision}\n Recall: {recall}\n F1: {f1}"
     )
+
     ##### EXPLANATION #####
     explainer = initialise_explainer(
         model=model,
@@ -57,6 +60,8 @@ if __name__ == "__main__":
     pred_explanations, ground_truth_explanations = explain_dataset(
         explainer, dataset, num=args.num_explanations
     )
+
+    print(len(pred_explanations), len(ground_truth_explanations))
 
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
 

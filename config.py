@@ -11,7 +11,7 @@ def load_args():
         type=str,
         default="Benzene",
         help="The dataset to use",
-        choices=["Benzene", "MUTAG"],
+        choices=["Benzene", "AlkaneCarbonyl"],
     )
     parser.add_argument(
         "--model",

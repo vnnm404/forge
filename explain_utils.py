@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from time import time
 import networkx as nx
-from config import args
+from config import device
 import os
 
 

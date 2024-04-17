@@ -12,6 +12,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     jaccard_score,
+    roc_auc_score
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -62,8 +63,8 @@ def explain_graph_dataset(explainer: Explainer, dataset: GraphDataset, num=50):
     for i in tqdm(range(num)):
         data, gt_explanation = dataset[i]
         # check if gt is all zeros
-        # if gt_explanation[0].edge_imp.sum() == 0:
-        #     continue
+        if gt_explanation[0].edge_imp.sum() == 0:
+            continue
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
         pred = explainer(data.x, edge_index=data.edge_index, batch=data.batch)
@@ -84,10 +85,17 @@ def explanation_accuracy(
     recall = 0
     f1 = 0
     jaccard = 0
+    auc = 0
 
     for pred, gt in zip(predicted_explanation, ground_truth_explanation):
         pred_edge_mask = pred["edge_mask"]  # thresholded explanation
         gt_edge_mask = gt.edge_imp
+        
+        if gt_edge_mask.sum() == 0:
+            print(gt_edge_mask)
+        # check for all ones
+        if gt_edge_mask.sum() == len(gt_edge_mask):
+            print(gt_edge_mask)
 
         edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
         edge_mask_precision = precision_score(
@@ -96,18 +104,22 @@ def explanation_accuracy(
         edge_mask_recall = recall_score(gt_edge_mask, pred_edge_mask, zero_division=0)
         edge_mask_f1 = f1_score(gt_edge_mask, pred_edge_mask, zero_division=0)
         edge_mask_jaccard = jaccard_score(gt_edge_mask, pred_edge_mask, zero_division=0)
+        edge_mask_auc = roc_auc_score(gt_edge_mask, pred_edge_mask)
 
         acc += edge_mask_accuracy
         precision += edge_mask_precision
         recall += edge_mask_recall
         f1 += edge_mask_f1
         jaccard += edge_mask_jaccard
+        auc += edge_mask_auc
+        
 
     acc = acc / len(predicted_explanation)
     precision = precision / len(predicted_explanation)
     recall = recall / len(predicted_explanation)
     f1 = f1 / len(predicted_explanation)
     jaccard = jaccard / len(predicted_explanation)
+    auc = auc / len(predicted_explanation)
 
     return {
         "accuracy": acc,
@@ -115,6 +127,7 @@ def explanation_accuracy(
         "recall": recall,
         "f1": f1,
         "jaccard": jaccard,
+        "auc": auc,
     }
 
 

@@ -9,6 +9,7 @@ from explain_utils import (
     save_to_graphml,
 )
 from config import device, args
+from time import time
 import torch
 import os
 import json
@@ -59,11 +60,7 @@ if __name__ == "__main__":
 
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
 
-    print(f"Explanation accuracy: {metrics['accuracy']}")
-    print(f"Explanation precision: {metrics['precision']}")
-    print(f"Explanation recall: {metrics['recall']}")
-    print(f"Explanation f1: {metrics['f1']}")
-    print(f"Explanation jaccard: {metrics['jaccard']}")
+    print(metrics)
 
     if args.visualise:
         # visualise the first explanation
@@ -71,7 +68,7 @@ if __name__ == "__main__":
     if args.save_explanation_dir:
         # save metrics to json
         metrics_path = os.path.join(
-            args.save_explanation_dir, f"{args.exp_name}", "graph_metrics.json"
+            args.save_explanation_dir, f"{args.exp_name}", f"{time()}_graph_metrics.json"
         )
         # create directory if it doesn't exist
         os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
@@ -128,16 +125,12 @@ if __name__ == "__main__":
     )
 
     pred_explanations, ground_truth_explanations = explain_dataset(
-        explainer, complex_dataset
+        explainer, complex_dataset, num=args.num_explanations
     )
 
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
 
-    print(f"Explanation accuracy: {metrics['accuracy']}")
-    print(f"Explanation precision: {metrics['precision']}")
-    print(f"Explanation recall: {metrics['recall']}")
-    print(f"Explanation f1: {metrics['f1']}")
-    print(f"Explanation jaccard: {metrics['jaccard']}")
+    print(metrics)
 
     if args.visualise:
         # visualise the first explanation
@@ -145,7 +138,7 @@ if __name__ == "__main__":
     if args.save_explanation_dir:
         # save metrics to json
         metrics_path = os.path.join(
-            args.save_explanation_dir, f"{args.exp_name}", "complex_metrics.json"
+            args.save_explanation_dir, f"{args.exp_name}", f"{time()}_complex_metrics.json"
         )
         os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
         with open(metrics_path, "w") as f:

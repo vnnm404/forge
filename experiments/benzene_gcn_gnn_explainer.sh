@@ -9,6 +9,7 @@ python3 main.py \
     --out_dim 1 \
     --explanation_algorithm GNNExplainer \
     --graph_epochs 100 \
-    --complex_epochs 10 \
+    --complex_epochs 50 \
     --explanation_epochs 200 \
     --save_explanation_dir explanations/ \
+    --num_explanations 200 \

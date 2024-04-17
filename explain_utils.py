@@ -6,11 +6,19 @@ from torch_geometric.explain import Explanation as PyGExplanation
 from data import ComplexDataset
 from graphxai.utils.explanation import Explanation as GraphXAIExplanation
 from graphxai.datasets.dataset import GraphDataset
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, jaccard_score
+from sklearn.metrics import (
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+    jaccard_score,
+)
 import matplotlib.pyplot as plt
 import seaborn as sns
 from time import time
 import networkx as nx
+from config import args
+import os
 
 
 def get_explanation_algorithm(name):
@@ -76,17 +84,19 @@ def explanation_accuracy(
     recall = 0
     f1 = 0
     jaccard = 0
-    
+
     for pred, gt in zip(predicted_explanation, ground_truth_explanation):
         pred_edge_mask = pred["edge_mask"]  # thresholded explanation
         gt_edge_mask = gt.edge_imp
 
         edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
-        edge_mask_precision = precision_score(gt_edge_mask, pred_edge_mask, zero_division=0)
+        edge_mask_precision = precision_score(
+            gt_edge_mask, pred_edge_mask, zero_division=0
+        )
         edge_mask_recall = recall_score(gt_edge_mask, pred_edge_mask, zero_division=0)
         edge_mask_f1 = f1_score(gt_edge_mask, pred_edge_mask, zero_division=0)
         edge_mask_jaccard = jaccard_score(gt_edge_mask, pred_edge_mask, zero_division=0)
-        
+
         acc += edge_mask_accuracy
         precision += edge_mask_precision
         recall += edge_mask_recall
@@ -98,14 +108,15 @@ def explanation_accuracy(
     recall = recall / len(predicted_explanation)
     f1 = f1 / len(predicted_explanation)
     jaccard = jaccard / len(predicted_explanation)
-    
+
     return {
-        'accuracy': acc,
-        'precision': precision,
-        'recall': recall,
-        'f1': f1,
-        'jaccard': jaccard
+        "accuracy": acc,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "jaccard": jaccard,
     }
+
 
 def visualise_explanation(
     pred_explanation: PyGExplanation,
@@ -241,7 +252,7 @@ def explain_dataset(
         return explain_graph_dataset(explainer, dataset, num)
 
 
-def save_to_graphml(data, explanation, outname="explanation", is_gt=False):
+def save_to_graphml(data, explanation, outdir, fname, is_gt=False):
     edge_list = data.edge_index.t().tolist()
     if is_gt:
         edge_mask = explanation.edge_imp.cpu().numpy().tolist()
@@ -253,4 +264,5 @@ def save_to_graphml(data, explanation, outname="explanation", is_gt=False):
         (edge_list[i][0], edge_list[i][1], edge_mask[i]) for i in range(len(edge_list))
     ]
     G.add_weighted_edges_from(weighted_edges)
-    nx.write_graphml(G, f"graphml/{outname}")
+    out_path = os.path.join(outdir, fname)
+    nx.write_graphml(G, out_path)

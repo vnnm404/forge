@@ -8,30 +8,34 @@ from explain_utils import (
     visualise_explanation,
     save_to_graphml,
 )
-from config import device
+from config import device, args
 import torch
 import os
+import json
 
 if __name__ == "__main__":
     ##### DATA LOAD AND PREPROCESSING #####
     print("Loading dataset...")
-    dataset = load_dataset("Benzene")
-    train_loader, test_loader = get_data_loaders(dataset, batch_size=64)
+    dataset = load_dataset(args.dataset)
+    train_loader, test_loader = get_data_loaders(dataset, batch_size=args.batch_size)
     print("Dataset loaded.")
     ##### MODEL #####
     model = GCN(
-        in_dim=14, hidden_dim=64, out_dim=1
-    )  # TODO: put everything in config + argparse
+        in_dim=args.in_dim,
+        hidden_dim=args.hidden_dim,
+        out_dim=args.out_dim,
+    )
     model.to(device)
     ##### TRAIN/LOAD #####
     # if available, load model, else train model
-    model_path = "trained_models/graph_gcn.pth"
-    if os.path.exists(model_path):
+    model_path = os.path.join(args.save_dir, f"{args.exp_name}_graphs.pth")
+    try:
+        os.path.exists(model_path)
         print("Loading model...")
         model.load_state_dict(torch.load(model_path))
-    else:
+    except:
         print("Training model...")
-        final_loss = train(model, train_loader, epochs=100)
+        final_loss = train(model, train_loader, epochs=args.graph_epochs)
         print(f"Final loss: {final_loss}")
         # save model
         torch.save(model.state_dict(), model_path)
@@ -42,9 +46,16 @@ if __name__ == "__main__":
         f"Accuracy: {accuracy}\n Precision: {precision}\n Recall: {recall}\n F1: {f1}"
     )
     ##### EXPLANATION #####
-    explainer = initialise_explainer(model, explanation_algorithm_name="GNNExplainer")
+    explainer = initialise_explainer(
+        model=model,
+        explanation_algorithm_name=args.explanation_algorithm,
+        explanation_epochs=args.explanation_epochs,
+        explanation_lr=args.explanation_lr,
+    )
 
-    pred_explanations, ground_truth_explanations = explain_dataset(explainer, dataset)
+    pred_explanations, ground_truth_explanations = explain_dataset(
+        explainer, dataset, num=args.num_explanations
+    )
 
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
 
@@ -52,13 +63,29 @@ if __name__ == "__main__":
     print(f"Explanation precision: {metrics['precision']}")
     print(f"Explanation recall: {metrics['recall']}")
     print(f"Explanation f1: {metrics['f1']}")
+    print(f"Explanation jaccard: {metrics['jaccard']}")
 
-    # visualise the first explanation
-    visualise_explanation(pred_explanations[1], ground_truth_explanations[1])
+    if args.visualise:
+        # visualise the first explanation
+        visualise_explanation(pred_explanations[1], ground_truth_explanations[1])
+    if args.save_explanation_dir:
+        # save metrics to json
+        metrics_path = os.path.join(
+            args.save_explanation_dir, f"{args.exp_name}", "graph_metrics.json"
+        )
+        # create directory if it doesn't exist
+        os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
+        with open(metrics_path, "w") as f:
+            json.dump(metrics, f, indent=4)
 
-    # save the first explanation to graphml
-    save_to_graphml(dataset[2][0], pred_explanations[1], "graph_explanation.graphml")
-
+    if args.save_explanation_graphml:
+        # save the first explanation to graphml
+        save_to_graphml(
+            data=dataset[1][0],
+            explanation=pred_explanations[1],
+            outdir=args.save_explanation_graphml,
+            fname=f"{args.exp_name}_graph.save_to_graphml",
+        )
     ######### CELL COMPLEX ##########################
 
     ##### DATA LOAD AND PREPROCESSING #####
@@ -68,17 +95,20 @@ if __name__ == "__main__":
 
     ##### MODEL #####
     model = GCN(
-        in_dim=14, hidden_dim=64, out_dim=1
-    )  # TODO: put everything in config + argparse
+        in_dim=args.in_dim,
+        hidden_dim=args.hidden_dim,
+        out_dim=args.out_dim,
+    )
     model.to(device)
-    model_path = "trained_models/complex_gcn.pth"
+    model_path = os.path.join(args.save_dir, f"{args.exp_name}_complexes.pth")
     ##### TRAIN/LOAD #####
-    if os.path.exists(model_path):
+    try:
+        os.path.exists(model_path)
         print("Loading model...")
         model.load_state_dict(torch.load(model_path))
-    else:
+    except:
         print("Training model...")
-        final_loss = train(model, train_loader, epochs=10)
+        final_loss = train(model, train_loader, epochs=args.complex_epochs)
         print(f"Final loss: {final_loss}")
         # save model
         torch.save(model.state_dict(), model_path)
@@ -90,7 +120,12 @@ if __name__ == "__main__":
     )
 
     ##### EXPLANATION #####
-    explainer = initialise_explainer(model, explanation_algorithm_name="GNNExplainer")
+    explainer = initialise_explainer(
+        model=model,
+        explanation_algorithm_name=args.explanation_algorithm,
+        explanation_epochs=args.explanation_epochs,
+        explanation_lr=args.explanation_lr,
+    )
 
     pred_explanations, ground_truth_explanations = explain_dataset(
         explainer, complex_dataset
@@ -102,17 +137,35 @@ if __name__ == "__main__":
     print(f"Explanation precision: {metrics['precision']}")
     print(f"Explanation recall: {metrics['recall']}")
     print(f"Explanation f1: {metrics['f1']}")
+    print(f"Explanation jaccard: {metrics['jaccard']}")
 
-    # visualise the first explanation
-    visualise_explanation(pred_explanations[1], ground_truth_explanations[1])
+    if args.visualise:
+        # visualise the first explanation
+        visualise_explanation(pred_explanations[1], ground_truth_explanations[1])
+    if args.save_explanation_dir:
+        # save metrics to json
+        metrics_path = os.path.join(
+            args.save_explanation_dir, f"{args.exp_name}", "complex_metrics.json"
+        )
+        os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
+        with open(metrics_path, "w") as f:
+            json.dump(metrics, f, indent=4)
 
-    # save the first explanation to graphml
-    save_to_graphml(dataset[2][0], pred_explanations[1], "complex_explanation.graphml")
+    if args.save_explanation_graphml:
+        # save the first explanation to graphml
+        save_to_graphml(
+            data=dataset[1][0],
+            explanation=pred_explanations[1],
+            outdir=args.save_explanation_graphml,
+            fname=f"{args.exp_name}_complexes.graphml",
+        )
 
-# save ground truth explanation to graphml
-save_to_graphml(
-    dataset[2][0],
-    ground_truth_explanations[1],
-    "ground_truth_explanation.graphml",
-    is_gt=True,
-)
+    if args.save_explanation_graphml:
+        # save ground truth explanation to graphml
+        save_to_graphml(
+            data=dataset[2][0],
+            explanation=ground_truth_explanations[1],
+            outdir=args.save_explanation_graphml,
+            fname=f"{args.exp_name}_gt.graphml",
+            is_gt=True,
+        )

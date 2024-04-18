@@ -59,7 +59,7 @@ def graph_exp_acc_graph(
     # Accessing the enclosing subgraph. Will be the same for both explanation.:
     # exp_subgraph = generated_exp.enc_subgraph
 
-    exp_graph = generated_exp.graph
+    # exp_graph = generated_exp.graph
 
     if generated_exp.feature_imp is not None:
         JAC_feat = []
@@ -87,7 +87,7 @@ def graph_exp_acc_graph(
                 FN = len(FNs)
                 JAC_feat.append(TP / (TP + FP + FN + EPS))
 
-    JAC_feat = max(JAC_feat) if len(JAC_feat) > 0 else None
+    # JAC_feat = max(JAC_feat) if len(JAC_feat) > 0 else None
 
     if generated_exp.node_imp is not None:
         JAC_node = []
@@ -126,8 +126,9 @@ def graph_exp_acc_graph(
             FPs = []
             FNs = []
             true_edges = torch.where(exp.edge_imp == 1)[0]
+            print(generated_exp.edge_imp)
             for edge in range(exp.edge_imp.shape[0]):
-                if generated_exp.edge_imp[edge]:
+                if generated_exp.edge_imp[edge] == 1:
                     if edge in true_edges:
                         TPs.append(edge)
                     else:

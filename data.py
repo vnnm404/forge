@@ -16,7 +16,7 @@ def load_dataset(name="Benzene"):
         raise NotImplementedError(f"Dataset {name} is not implemented.")
 
 
-def graph_to_complex(g) -> HeteroData:
+def graph_to_complex(g):
     hg = HeteroData()
 
     if hasattr(g, "y"):
@@ -27,7 +27,17 @@ def graph_to_complex(g) -> HeteroData:
     hg["node", "to", "node"].edge_index = g.edge_index
 
     # adding edge nodes, INFO: new edge-node for both directions
-    hg["edge_node"].x = g.edge_attr
+    if g.edge_attr is not None:
+        hg["edge_node"].x = g.edge_attr
+    else:
+        edge_x = []
+        for i in range(g.edge_index.shape[1]):
+            # get the constituent nodes of the edge
+            source_node = g.edge_index[0][i]
+            target_node = g.edge_index[1][i]
+            # add the mean
+            edge_x.append((g.x[source_node] + g.x[target_node]) / 2)
+        hg["edge_node"].x = torch.stack(edge_x, dim=0)
 
     num_edges = g.edge_index.shape[1]
     range_edges = torch.arange(num_edges)  # the id of the new edges

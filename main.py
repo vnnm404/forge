@@ -1,6 +1,6 @@
 from data import load_dataset, get_data_loaders, load_dataset_as_complex
-from models import GCN
-from eval_utils import train, test
+from models import load_model
+from eval_utils import train, test, train_node
 from explain_utils import (
     initialise_explainer,
     explain_dataset,
@@ -23,7 +23,8 @@ if __name__ == "__main__":
     print("Dataset loaded.")
 
     ##### MODEL #####
-    model = GCN(
+    model = load_model(
+        name=args.model,
         in_dim=args.in_dim,
         hidden_dim=args.hidden_dim,
         out_dim=args.out_dim,
@@ -112,7 +113,8 @@ if __name__ == "__main__":
     train_loader, test_loader = get_data_loaders(complex_dataset, batch_size=64)
 
     ##### MODEL #####
-    model = GCN(
+    model = load_model(
+        args.model,
         in_dim=args.in_dim,
         hidden_dim=args.hidden_dim,
         out_dim=args.out_dim,

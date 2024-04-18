@@ -18,7 +18,7 @@ def load_args():
         type=str,
         default="GCN",
         help="The model to use",
-        choices=["GCN"],
+        choices=["GCN", "GAT", "GIN"],
     )
     parser.add_argument(
         "--in_dim",
@@ -108,9 +108,16 @@ def load_args():
         default=50,
         help="The number of explanations to generate in the given dataset",
     )
+    parser.add_argument(
+        "--task_level",
+        type=str,
+        default="graph",
+        help="The level of the explanation task",
+        choices=["graph", "node"],
+    )
     return parser.parse_args()
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 args = load_args()
-args.exp_name = f"{args.dataset}_{args.model}_{args.explanation_algorithm}"
+args.exp_name = f"{args.task_level}_{args.dataset}_{args.model}_{args.explanation_algorithm}"

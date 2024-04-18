@@ -12,4 +12,4 @@ python3 main.py \
     --complex_epochs 50 \
     --explanation_epochs 400 \
     --save_explanation_dir explanations/ \
-    --num_explanations 10 \
+    --num_explanations 100 \

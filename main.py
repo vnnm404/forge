@@ -51,10 +51,8 @@ if __name__ == "__main__":
 
     ##### EXPLANATION #####
     explainer = initialise_explainer(
+        name=args.explanation_algorithm,
         model=model,
-        explanation_algorithm_name=args.explanation_algorithm,
-        explanation_epochs=args.explanation_epochs,
-        explanation_lr=args.explanation_lr,
     )
     
     if args.explanation_algorithm == "PGExplainer":
@@ -139,10 +137,8 @@ if __name__ == "__main__":
 
     ##### EXPLANATION #####
     explainer = initialise_explainer(
+        name=args.explanation_algorithm,
         model=model,
-        explanation_algorithm_name=args.explanation_algorithm,
-        explanation_epochs=args.explanation_epochs,
-        explanation_lr=args.explanation_lr,
     )
 
     if args.explanation_algorithm == "PGExplainer":

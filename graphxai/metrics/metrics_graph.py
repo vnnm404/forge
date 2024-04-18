@@ -59,7 +59,7 @@ def graph_exp_acc_graph(
     # Accessing the enclosing subgraph. Will be the same for both explanation.:
     # exp_subgraph = generated_exp.enc_subgraph
 
-    # exp_graph = generated_exp.graph
+    exp_graph = generated_exp.graph
 
     if generated_exp.feature_imp is not None:
         JAC_feat = []

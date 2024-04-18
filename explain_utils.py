@@ -20,6 +20,11 @@ from sklearn.metrics import (
     jaccard_score,
     roc_auc_score,
 )
+from graphxai.explainers._base import _BaseExplainer
+from graphxai.explainers import (
+    GNNExplainer,
+)
+
 import matplotlib.pyplot as plt
 import seaborn as sns
 from time import time
@@ -38,37 +43,62 @@ def get_explanation_algorithm(name):
     raise NotImplementedError(f"Explanation algorithm {name} is not implemented.")
 
 
-def initialise_explainer(
-    model,
-    explanation_algorithm_name,
-    explanation_epochs=200,
-    explanation_lr=0.01,
-    task="binary_classification",
-    node_mask_type="object",
-    edge_mask_type="object",
-):
-    if explanation_algorithm_name == "PGExplainer":
-        node_mask_type = None
-    return Explainer(
-        model=model,
-        explanation_type=(
-            "model" if explanation_algorithm_name == "GNNExplainer" else "phenomenon"
-        ),
-        algorithm=get_explanation_algorithm(explanation_algorithm_name)(
-            epochs=explanation_epochs,
-            lr=explanation_lr,
-        ),
-        node_mask_type=node_mask_type,
-        edge_mask_type=edge_mask_type,
-        model_config=dict(
-            mode=task,
-            task_level="graph",
-            return_type="probs",
-        ),
-    )
+# def initialise_explainer(
+#     model,
+#     explanation_algorithm_name,
+#     explanation_epochs=200,
+#     explanation_lr=0.01,
+#     task="binary_classification",
+#     node_mask_type="object",
+#     edge_mask_type="object",
+# ):
+#     if explanation_algorithm_name == "PGExplainer":
+#         node_mask_type = None
+#     return Explainer(
+#         model=model,
+#         explanation_type=(
+#             "model" if explanation_algorithm_name == "GNNExplainer" else "phenomenon"
+#         ),
+#         algorithm=get_explanation_algorithm(explanation_algorithm_name)(
+#             epochs=explanation_epochs,
+#             lr=explanation_lr,
+#         ),
+#         node_mask_type=node_mask_type,
+#         edge_mask_type=edge_mask_type,
+#         model_config=dict(
+#             mode=task,
+#             task_level="graph",
+#             return_type="probs",
+#         ),
+#     )
 
 
-def explain_graph_dataset(explainer: Explainer, dataset: GraphDataset, num=50):
+def initialise_explainer(name, model):
+    if name == "GNNExplainer":
+        return GNNExplainer(model=model)
+
+def get_top_k(mask, k=0.25):
+    """
+    Get the top k elements in the mask. k here is a percentage of elements to keep.
+
+    Args:
+        mask (Tensor): The mask to threshold.
+        k (float): The percentage of elements to keep.
+    """
+    k = int(k * mask.numel())
+    # check how many elements are more than 0.5
+    num_elements_above_threshold = (mask > 0.5).sum().item()
+    # if the number of elements above threshold is less than k, return the mask after thresholding at 0.5
+    if num_elements_above_threshold < k:
+        return (mask > 0.5).float()
+    print("MORE THAN K ELEMENTS")
+    # else, get the kth largest element
+    threshold = mask.flatten().topk(k).values[-1]
+    # threshold the mask
+    return (mask > threshold).float()
+    
+
+def explain_graph_dataset(explainer: _BaseExplainer, dataset: GraphDataset, num=50):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
     """
@@ -79,11 +109,12 @@ def explain_graph_dataset(explainer: Explainer, dataset: GraphDataset, num=50):
 
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
-        pred = explainer(
-            data.x, edge_index=data.edge_index, batch=data.batch
+        pred = explainer.get_explanation_graph(
+            data.x, edge_index=data.edge_index, forward_kwargs={"batch": data.batch}
         )
-        pred["node_mask"] = pred["node_mask"] > 0.5
-        pred["edge_mask"] = pred["edge_mask"] > 0.5
+        edge_mask = get_top_k(pred.edge_imp)
+        pred.edge_imp = edge_mask
+        pred.graph = data
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
     return pred_explanations, ground_truth_explanations
@@ -105,7 +136,7 @@ def explanation_accuracy(
     valid_explanations_count = 0
 
     for pred, gt_list in zip(predicted_explanation, ground_truth_explanation):
-        pred_edge_mask = pred["edge_mask"]  # thresholded explanation
+        # pred_edge_mask = pred["edge_mask"]  # thresholded explanation
         # best_gt_edge_mask = None
         # max_gt_acc = 0
         # max_gt_precision = 0
@@ -113,14 +144,10 @@ def explanation_accuracy(
         # max_gt_f1 = 0
         # max_gt_jaccard = 0
         # max_gt_auc = 0
-        
-        pred_explanation = GraphXAIExplanation(
-            edge_imp=pred_edge_mask
-        )
-        
-        acc += graph_exp_acc_graph(
-            gt_exp=gt_list,
-            generated_exp=pred_explanation)[2]
+
+        # pred_explanation = GraphXAIExplanation(edge_imp=pred_edge_mask)
+
+        acc += graph_exp_acc_graph(gt_exp=gt_list, generated_exp=pred)[2]
 
         # if len(gt_list) == 0:
         #     continue
@@ -234,8 +261,10 @@ def visualise_explanation(
 
 
 def to_standard(graph, explanation, mapping):
-    edge_mask = explanation["edge_mask"]
+    edge_mask = explanation.edge_imp
     edge_type = graph.edge_type
+    
+    print((edge_mask > 0.5))
 
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
@@ -284,7 +313,6 @@ def to_standard(graph, explanation, mapping):
             new_edge_mask[idx] += edge_mask[i]
 
         last_seen = edge_type[i]
-
     return new_edge_mask
 
 
@@ -298,11 +326,14 @@ def explain_cell_complex_dataset(explainer: Explainer, dataset: ComplexDataset, 
         data, gt_explanation, mapping = dataset[i]
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
-        pred = explainer(
-            data.x, edge_index=data.edge_index, batch=data.batch
+        pred = explainer.get_explanation_graph(
+            data.x, edge_index=data.edge_index, forward_kwargs={"batch": data.batch}
         )
-        edge_mask = (to_standard(data, pred, mapping) / 3.5).tanh() > 0.5
-        pred["edge_mask"] = edge_mask
+        edge_mask = (to_standard(data, pred, mapping) / 3.5).tanh()
+        print(edge_mask)
+        edge_mask = get_top_k(edge_mask)
+        print(edge_mask)
+        pred.edge_imp = edge_mask
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
     return pred_explanations, ground_truth_explanations

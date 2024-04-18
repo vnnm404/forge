@@ -131,9 +131,11 @@ class _BaseExplainer:
         """
         # Compute unnormalized class score
         with torch.no_grad():
-            out = self.model.to(device)(x, edge_index, **forward_kwargs)
+            out = self.model.to(device)(x, edge_index, **forward_kwargs)            
             if return_type == "label":
-                out = out.argmax(dim=-1)
+                # tensor of 1 if the class is the most likely, 0 otherwise
+                # take a threshold of 0.5
+                out = (out > 0.5).float()
             elif return_type == "prob":
                 out = F.softmax(out, dim=-1)
             elif return_type == "log_prob":
@@ -141,9 +143,8 @@ class _BaseExplainer:
             else:
                 raise ValueError("return_type must be 'label', 'prob', or 'log_prob'")
 
-            if self.explain_graph:
-                out = out.squeeze()
-
+            # if self.explain_graph:
+            #     out = out.squeeze()|
             return out
 
     def _prob_score_func_graph(self, target_class: torch.Tensor):
@@ -318,7 +319,7 @@ class _BaseExplainer:
         self,
         edge_index: torch.Tensor,
         x: torch.Tensor,
-        label: torch.Tensor,
+        label: Optional[torch.Tensor],
         forward_kwargs: dict = {},
     ):
         """

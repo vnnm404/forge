@@ -11,6 +11,7 @@ from torch_geometric.explain import Explanation as PyGExplanation
 from data import ComplexDataset
 from graphxai.utils.explanation import Explanation as GraphXAIExplanation
 from graphxai.datasets.dataset import GraphDataset
+from graphxai.metrics.metrics_graph import graph_exp_acc_graph
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -105,73 +106,81 @@ def explanation_accuracy(
 
     for pred, gt_list in zip(predicted_explanation, ground_truth_explanation):
         pred_edge_mask = pred["edge_mask"]  # thresholded explanation
-        best_gt_edge_mask = None
-        max_gt_acc = 0
-        max_gt_precision = 0
-        max_gt_recall = 0
-        max_gt_f1 = 0
-        max_gt_jaccard = 0
-        max_gt_auc = 0
+        # best_gt_edge_mask = None
+        # max_gt_acc = 0
+        # max_gt_precision = 0
+        # max_gt_recall = 0
+        # max_gt_f1 = 0
+        # max_gt_jaccard = 0
+        # max_gt_auc = 0
+        
+        pred_explanation = GraphXAIExplanation(
+            edge_imp=pred_edge_mask
+        )
+        
+        acc += graph_exp_acc_graph(
+            gt_exp=gt_list,
+            generated_exp=pred_explanation)[2]
 
-        if len(gt_list) == 0:
-            continue
+        # if len(gt_list) == 0:
+        #     continue
 
-        loop_flag = False  # flag to check if the below loop has been executed
-        for i, gt in enumerate(gt_list):
-            try:
-                gt_edge_mask = gt.edge_imp
+        # loop_flag = False  # flag to check if the below loop has been executed
+        # for i, gt in enumerate(gt_list):
+        #     try:
+        #         gt_edge_mask = gt.edge_imp
 
-                edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
-                edge_mask_precision = precision_score(
-                    gt_edge_mask, pred_edge_mask, zero_division=0
-                )
-                edge_mask_recall = recall_score(
-                    gt_edge_mask, pred_edge_mask, zero_division=0
-                )
-                edge_mask_f1 = f1_score(gt_edge_mask, pred_edge_mask, zero_division=0)
-                edge_mask_jaccard = jaccard_score(
-                    gt_edge_mask, pred_edge_mask, zero_division=0
-                )
-                edge_mask_auc = roc_auc_score(gt_edge_mask, pred_edge_mask)
-                if edge_mask_jaccard >= max_gt_jaccard:
-                    max_gt_acc = edge_mask_accuracy
-                    max_gt_precision = edge_mask_precision
-                    max_gt_recall = edge_mask_recall
-                    max_gt_f1 = edge_mask_f1
-                    max_gt_jaccard = edge_mask_jaccard
-                    max_gt_auc = edge_mask_auc
-                    best_gt_edge_mask = gt_edge_mask
-                loop_flag = True  # loop has been executed at least once
-            except:
-                continue
-        if not loop_flag:
-            continue
-        if max_gt_jaccard == 0:
-            print(pred_edge_mask)
-            print(best_gt_edge_mask)
-        acc += max_gt_acc
-        precision += max_gt_precision
-        recall += max_gt_recall
-        f1 += max_gt_f1
-        jaccard += max_gt_jaccard
-        auc += max_gt_auc
+        #         edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
+        #         edge_mask_precision = precision_score(
+        #             gt_edge_mask, pred_edge_mask, zero_division=0
+        #         )
+        #         edge_mask_recall = recall_score(
+        #             gt_edge_mask, pred_edge_mask, zero_division=0
+        #         )
+        #         edge_mask_f1 = f1_score(gt_edge_mask, pred_edge_mask, zero_division=0)
+        #         edge_mask_jaccard = jaccard_score(
+        #             gt_edge_mask, pred_edge_mask, zero_division=0
+        #         )
+        #         edge_mask_auc = roc_auc_score(gt_edge_mask, pred_edge_mask)
+        #         if edge_mask_jaccard >= max_gt_jaccard:
+        #             max_gt_acc = edge_mask_accuracy
+        #             max_gt_precision = edge_mask_precision
+        #             max_gt_recall = edge_mask_recall
+        #             max_gt_f1 = edge_mask_f1
+        #             max_gt_jaccard = edge_mask_jaccard
+        #             max_gt_auc = edge_mask_auc
+        #             best_gt_edge_mask = gt_edge_mask
+        #         loop_flag = True  # loop has been executed at least once
+        #     except:
+        #         continue
+        # if not loop_flag:
+        #     continue
+        # if max_gt_jaccard == 0:
+        #     print(pred_edge_mask)
+        #     print(best_gt_edge_mask)
+        # acc += max_gt_acc
+        # precision += max_gt_precision
+        # recall += max_gt_recall
+        # f1 += max_gt_f1
+        # jaccard += max_gt_jaccard
+        # auc += max_gt_auc
 
-        valid_explanations_count += 1  # increment valid explanations count as the loop has been executed at least once
+        # valid_explanations_count += 1  # increment valid explanations count as the loop has been executed at least once
 
-    acc = acc / valid_explanations_count
-    precision = precision / valid_explanations_count
-    recall = recall / valid_explanations_count
-    f1 = f1 / valid_explanations_count
-    jaccard = jaccard / valid_explanations_count
-    auc = auc / valid_explanations_count
+    acc = acc / len(predicted_explanation)
+    # precision = precision / valid_explanations_count
+    # recall = recall / valid_explanations_count
+    # f1 = f1 / valid_explanations_count
+    # jaccard = jaccard / valid_explanations_count
+    # auc = auc / valid_explanations_count
 
     return {
         "accuracy": acc,
-        "precision": precision,
-        "recall": recall,
-        "f1": f1,
-        "jaccard": jaccard,
-        "auc": auc,
+        # "precision": precision,
+        # "recall": recall,
+        # "f1": f1,
+        # "jaccard": jaccard,
+        # "auc": auc,
     }
 
 

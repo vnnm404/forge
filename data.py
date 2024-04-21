@@ -87,6 +87,10 @@ def graph_to_complex(g):
         cycle_feature[cycle_length - 1] = 1  # one-hot
         cycle_nodes.append(cycle_feature)
 
+        edges_in_cycle = []
+        c_t_e_edges = []
+        e_t_c_edges = []
+
         # connect cycle_node to all nodes in the cycle
         for node in cycle:
             cycle_node_to_node.append([i, node])
@@ -100,11 +104,21 @@ def graph_to_complex(g):
             cycle_node_to_edge_node.append([i, edge_index])
             edge_node_to_cycle_node.append([edge_index, i])
 
-            mapping[3][c_t_e_counter] = edge_index
-            mapping[4][e_t_c_counter] = edge_index
+            edges_in_cycle.append(edge_index)
+            c_t_e_edges.append(c_t_e_counter)
+            e_t_c_edges.append(e_t_c_counter)
+
+            # mapping[3][c_t_e_counter] = edge_index
+            # mapping[4][e_t_c_counter] = edge_index
 
             c_t_e_counter += 1
             e_t_c_counter += 1
+        
+        for edge in c_t_e_edges:
+            mapping[3][edge] = edges_in_cycle
+        
+        for edge in e_t_c_edges:
+            mapping[4][edge] = edges_in_cycle
 
     hg["cycle_node"].x = torch.tensor(np.array(cycle_nodes), dtype=torch.float32)
     # hg['cycle_node', 'to', 'node'].edge_index = torch.tensor(np.array(cycle_node_to_node), dtype=torch.long).t()
@@ -119,6 +133,30 @@ def graph_to_complex(g):
     return hg, mapping
 
 
+def in_house_to_homogeneous(hg):
+    homo_g = hg.to_homogeneous()
+    
+    x = hg['node']['x']
+    y = hg['edge_node']['x']
+    if hg['cycle_node']:
+        z = hg['cycle_node']['x']
+    else:
+        z = torch.zeros((0, 8))
+
+    q = x.size(1) + y.size(1) + z.size(1)
+
+    x_padded = torch.cat([x, torch.zeros(x.size(0), q - x.size(1))], dim=1)
+    y_padded = torch.cat([torch.zeros(y.size(0), x.size(1)), y, torch.zeros(y.size(0), z.size(1))], dim=1)
+    z_padded = torch.cat([torch.zeros(z.size(0), q - z.size(1)), z], dim=1)
+
+    # concat across dim 0
+    features = torch.cat([x_padded, y_padded, z_padded], dim=0)
+    assert homo_g.x.size(0) == features.size(0)
+
+    homo_g.x = features
+    return homo_g
+
+
 class ComplexDataset(Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
@@ -128,8 +166,11 @@ class ComplexDataset(Dataset):
 
     def __getitem__(self, idx):
         hg, mapping = graph_to_complex(self.dataset[idx][0])
+        # print(hg)
         gt_explanation = self.dataset[idx][1]
         hg = hg.to_homogeneous()
+        # hg = in_house_to_homogeneous(hg)
+        # print('HOMO', hg)
         return (hg, gt_explanation, mapping)
 
 

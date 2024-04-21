@@ -109,76 +109,76 @@ def explanation_accuracy(
 
     for pred, gt_list in zip(predicted_explanation, ground_truth_explanation):
         pred_edge_mask = pred["edge_mask"]  # thresholded explanation
-        # best_gt_edge_mask = None
-        # max_gt_acc = 0
-        # max_gt_precision = 0
-        # max_gt_recall = 0
-        # max_gt_f1 = 0
-        # max_gt_jaccard = 0
-        # max_gt_auc = 0
+        best_gt_edge_mask = None
+        max_gt_acc = 0
+        max_gt_precision = 0
+        max_gt_recall = 0
+        max_gt_f1 = 0
+        max_gt_jaccard = 0
+        max_gt_auc = 0
 
         if len(gt_list) == 0:
             continue
         
-        pred_gxai = GraphXAIExplanation(edge_imp=pred_edge_mask)
+        # pred_gxai = GraphXAIExplanation(edge_imp=pred_edge_mask)
 
-        _,_,acc = graph_exp_acc_graph(gt_list, pred_gxai)
-        # loop_flag = False  # flag to check if the below loop has been executed
-        # for i, gt in enumerate(gt_list):
-        #     try:
-        #         gt_edge_mask = gt.edge_imp
+        # _,_,acc = graph_exp_acc_graph(gt_list, pred_gxai)
+        loop_flag = False  # flag to check if the below loop has been executed
+        for i, gt in enumerate(gt_list):
+            try:
+                gt_edge_mask = gt.edge_imp
 
-        #         edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
-        #         edge_mask_precision = precision_score(
-        #             gt_edge_mask, pred_edge_mask, zero_division=0
-        #         )
-        #         edge_mask_recall = recall_score(
-        #             gt_edge_mask, pred_edge_mask, zero_division=0
-        #         )
-        #         edge_mask_f1 = f1_score(gt_edge_mask, pred_edge_mask, zero_division=0)
-        #         edge_mask_jaccard = jaccard_score(
-        #             gt_edge_mask, pred_edge_mask, zero_division=0
-        #         )
-        #         edge_mask_auc = roc_auc_score(gt_edge_mask, pred_edge_mask)
-        #         if edge_mask_jaccard >= max_gt_jaccard:
-        #             max_gt_acc = edge_mask_accuracy
-        #             max_gt_precision = edge_mask_precision
-        #             max_gt_recall = edge_mask_recall
-        #             max_gt_f1 = edge_mask_f1
-        #             max_gt_jaccard = edge_mask_jaccard
-        #             max_gt_auc = edge_mask_auc
-        #             best_gt_edge_mask = gt_edge_mask
-        #         loop_flag = True  # loop has been executed at least once
-        #     except:
-        #         continue
-        # if not loop_flag:
-        #     continue
+                edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
+                edge_mask_precision = precision_score(
+                    gt_edge_mask, pred_edge_mask, zero_division=0
+                )
+                edge_mask_recall = recall_score(
+                    gt_edge_mask, pred_edge_mask, zero_division=0
+                )
+                edge_mask_f1 = f1_score(gt_edge_mask, pred_edge_mask, zero_division=0)
+                edge_mask_jaccard = jaccard_score(
+                    gt_edge_mask, pred_edge_mask, zero_division=0
+                )
+                edge_mask_auc = roc_auc_score(gt_edge_mask, pred_edge_mask)
+                if edge_mask_jaccard >= max_gt_jaccard:
+                    max_gt_acc = edge_mask_accuracy
+                    max_gt_precision = edge_mask_precision
+                    max_gt_recall = edge_mask_recall
+                    max_gt_f1 = edge_mask_f1
+                    max_gt_jaccard = edge_mask_jaccard
+                    max_gt_auc = edge_mask_auc
+                    best_gt_edge_mask = gt_edge_mask
+                loop_flag = True  # loop has been executed at least once
+            except:
+                continue
+        if not loop_flag:
+            continue
         # if max_gt_jaccard == 0:
         #     print(pred_edge_mask)
         #     print(best_gt_edge_mask)
-        # acc += max_gt_acc
-        # precision += max_gt_precision
-        # recall += max_gt_recall
-        # f1 += max_gt_f1
-        # jaccard += max_gt_jaccard
-        # auc += max_gt_auc
+        acc += max_gt_acc
+        precision += max_gt_precision
+        recall += max_gt_recall
+        f1 += max_gt_f1
+        jaccard += max_gt_jaccard
+        auc += max_gt_auc
 
         valid_explanations_count += 1  # increment valid explanations count as the loop has been executed at least once
 
     acc = acc / len(predicted_explanation)
-    # precision = precision / valid_explanations_count
-    # recall = recall / valid_explanations_count
-    # f1 = f1 / valid_explanations_count
-    # jaccard = jaccard / valid_explanations_count
-    # auc = auc / valid_explanations_count
+    precision = precision / valid_explanations_count
+    recall = recall / valid_explanations_count
+    f1 = f1 / valid_explanations_count
+    jaccard = jaccard / valid_explanations_count
+    auc = auc / valid_explanations_count
 
     return {
         "accuracy": acc,
-        # "precision": precision,
-        # "recall": recall,
-        # "f1": f1,
-        # "jaccard": jaccard,
-        # "auc": auc,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "jaccard": jaccard,
+        "auc": auc,
     }
 
 
@@ -231,7 +231,7 @@ def visualise_explanation(
 #### FOR CELL COMPLEXES ####
 
 
-def to_standard(graph, explanation, mapping):
+def spread_edge_wise(graph, explanation, mapping):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
 
@@ -286,6 +286,123 @@ def to_standard(graph, explanation, mapping):
     return new_edge_mask
 
 
+def spread_cycle_wise(graph, explanation, mapping):
+    edge_mask = explanation["edge_mask"]
+    edge_type = graph.edge_type
+
+    num_og_edges = (edge_type == 0).sum().item()
+    new_edge_mask = torch.zeros(num_og_edges)
+
+    # print(num_og_edges, new_edge_mask)
+
+    last_seen = -1
+    counter = 0
+    for i in range(len(edge_type)):
+        if edge_type[i] == 0:
+            new_edge_mask[i] = edge_mask[i]
+
+        if edge_type[i] == 1:
+            if last_seen != 1:
+                counter = 0
+            else:
+                counter += 1
+
+            idx = mapping[1][counter]
+            new_edge_mask[idx] += edge_mask[i]
+        elif edge_type[i] == 2:
+            if last_seen != 2:
+                counter = 0
+            else:
+                counter += 1
+
+            idx = mapping[2][counter]
+            new_edge_mask[idx] += edge_mask[i]
+        elif edge_type[i] == 3:
+            if last_seen != 3:
+                counter = 0
+            else:
+                counter += 1
+
+            # print('ERRROR', i)
+            # print(edge_type[i], edge_type[i + 1])
+            idx_list = mapping[3][counter]
+            for idx in idx_list:
+                new_edge_mask[idx] += edge_mask[i]
+        elif edge_type[i] == 4:
+            if last_seen != 4:
+                counter = 0
+            else:
+                counter += 1
+
+            idx_list = mapping[4][counter]
+            for idx in idx_list:
+                new_edge_mask[idx] += edge_mask[i]
+
+        last_seen = edge_type[i]
+
+    return new_edge_mask
+
+
+def remove_type_2_nodes(data):
+    """
+    Removes nodes of type '2' which are assumed to be at the end of the node list.
+    All edges connected to these nodes are also removed.
+    
+    Parameters:
+    - data (Data): The input graph data object.
+    
+    Returns:
+    - Data: The updated graph data object with type '2' nodes and associated edges removed.
+    """
+    if 2 not in data.node_type:
+        return data
+
+    # Determine the cutoff index where nodes of type '2' start
+    # Since type '2' nodes are at the end, find the first occurrence of '2' in the node_type array
+    cutoff_index = (data.node_type == 2).nonzero(as_tuple=True)[0][0]
+    
+    # Update node features and types by excluding type '2' nodes
+    data.x = data.x[:cutoff_index]
+    data.node_type = data.node_type[:cutoff_index]
+    
+    # Create a mask for edges to keep only those that do not connect to type '2' nodes
+    edge_mask = data.edge_index[0] < cutoff_index
+    edge_mask &= data.edge_index[1] < cutoff_index
+    
+    # Apply the mask to edge_index and edge_type
+    data.edge_index = data.edge_index[:, edge_mask]
+    data.edge_type = data.edge_type[edge_mask]
+    
+    return data
+
+def remove_type_1_nodes(data):
+    """
+    Removes nodes of type '1' which are assumed to be at the end of the node list.
+    All edges connected to these nodes are also removed.
+    
+    Parameters:
+    - data (Data): The input graph data object.
+    
+    Returns:
+    - Data: The updated graph data object with type '1' nodes and associated edges removed.
+    """
+    if 1 not in data.node_type:
+        return data
+
+    cutoff_index = (data.node_type == 1).nonzero(as_tuple=True)[0][0]
+    
+    data.x = data.x[:cutoff_index]
+    data.node_type = data.node_type[:cutoff_index]
+    
+    edge_mask = data.edge_index[0] < cutoff_index
+    edge_mask &= data.edge_index[1] < cutoff_index
+    
+    data.edge_index = data.edge_index[:, edge_mask]
+    data.edge_type = data.edge_type[edge_mask]
+    
+    return data
+
+
 def explain_cell_complex_dataset(explainer: Explainer, dataset: ComplexDataset, num=50):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
@@ -296,13 +413,21 @@ def explain_cell_complex_dataset(explainer: Explainer, dataset: ComplexDataset, 
         data, gt_explanation, mapping = dataset[i]
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
+
+        # print(data)
+        # print(data.node_type)
+        # print(mapping)
+
+        data = remove_type_2_nodes(data)
+        # data = remove_type_1_nodes(data)
+
         pred = explainer(
             data.x, edge_index=data.edge_index, batch=data.batch
         )
-        edge_mask = (to_standard(data, pred, mapping) / 3.5).tanh()
+        edge_mask = (spread_cycle_wise(data, pred, mapping) / 3.5).tanh()
         k = int(0.25*len(edge_mask))
         # take top k edges as 1 and rest as 0
-        pred["edge_mask"] = (edge_mask > edge_mask.topk(k).values.min()).float()
+        pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
         # pred["edge_mask"] = edge_mask
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
@@ -322,7 +447,7 @@ def save_to_graphml(data, explanation, outdir, fname, is_gt=False):
     edge_list = data.edge_index.t().tolist()
     if is_gt:
         edge_mask = explanation.edge_imp.cpu().numpy().tolist()
-        print(edge_mask)
+        # print(edge_mask)
     else:
         edge_mask = explanation["edge_mask"].tolist()
     G = nx.Graph()

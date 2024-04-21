@@ -57,13 +57,13 @@ def load_args():
     parser.add_argument(
         "--graph_epochs",
         type=int,
-        default=100,
+        default=30,
         help="The number of epochs for training on graphs",
     )
     parser.add_argument(
         "--complex_epochs",
         type=int,
-        default=100,
+        default=30,
         help="The number of epochs for training on cell complexes",
     )
     parser.add_argument(
@@ -105,7 +105,7 @@ def load_args():
     parser.add_argument(
         "--num_explanations",
         type=int,
-        default=50,
+        default=100,
         help="The number of explanations to generate in the given dataset",
     )
     parser.add_argument(
@@ -118,6 +118,7 @@ def load_args():
     return parser.parse_args()
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = 'cpu'
 args = load_args()
 args.exp_name = f"{args.task_level}_{args.dataset}_{args.model}_{args.explanation_algorithm}"

@@ -8,8 +8,8 @@ python3 main.py \
     --hidden_dim 64 \
     --out_dim 1 \
     --explanation_algorithm GNNExplainer \
-    --graph_epochs 100 \
-    --complex_epochs 10 \
+    --graph_epochs 30 \
+    --complex_epochs 30 \
     --explanation_epochs 200 \
     --save_explanation_dir explanations/ \
-    --num_explanations 1000 \
+    --num_explanations 1000

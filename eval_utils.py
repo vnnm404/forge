@@ -16,7 +16,7 @@ def train(model, data_loader, val_loader, model_path, epochs=100):
             data = data.to(device)
             optimizer.zero_grad()
             out = model(data.x, data.edge_index, data.batch)
-            loss = loss_fn(out, data.y)
+            loss = loss_fn(out, data.y.float())
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
@@ -39,7 +39,7 @@ def val(model, data_loader):
         data = data.to(device)
         with torch.no_grad():
             out = model(data.x, data.edge_index, data.batch)
-        loss += loss_fn(out, data.y).item()
+        loss += loss_fn(out, data.y.float()).item()
     loss /= len(data_loader)
     return loss
 

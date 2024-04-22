@@ -1,5 +1,5 @@
 from typing import Tuple, Union
-from graphxai.datasets import Benzene, AlkaneCarbonyl, GraphDataset
+from graphxai.datasets import Benzene, AlkaneCarbonyl, GraphDataset, Mutagenicity, FluorideCarbonyl
 from torch_geometric.data import HeteroData, Dataset
 from torch_geometric.loader import DataLoader
 import torch
@@ -12,6 +12,10 @@ def load_dataset(name="Benzene"):
         return Benzene()
     elif name == "AlkaneCarbonyl":
         return AlkaneCarbonyl()
+    elif name == "Mutagenicity":
+        return Mutagenicity(root="data/")
+    elif name == "FluorideCarbonyl":
+        return FluorideCarbonyl()
     else:
         raise NotImplementedError(f"Dataset {name} is not implemented.")
 

@@ -196,7 +196,11 @@ def visualise_explanation(
     if gt_explanation is not None:
         # plot both predicted and ground truth explanations side by side
         pred_edge_mask = pred_explanation["edge_mask"].reshape(-1, 1)
-        gt_edge_mask = gt_explanation.edge_imp.reshape(-1, 1)
+        idx_to_take = 0
+        while gt_explanation[idx_to_take].edge_imp.sum().item() == 0:
+            idx_to_take += 1
+            
+        gt_edge_mask = gt_explanation[idx_to_take].edge_imp.reshape(-1, 1)
 
         # heatmap for predicted explanation
         plt.figure(figsize=(6, 5))
@@ -445,8 +449,17 @@ def explain_dataset(
 
 def save_to_graphml(data, explanation, outdir, fname, is_gt=False):
     edge_list = data.edge_index.t().tolist()
+    edge_mask = None
     if is_gt:
-        edge_mask = explanation.edge_imp.cpu().numpy().tolist()
+        try:
+            for i in range(len(explanation)):
+                if explanation[i].edge_imp.sum().item() == 0:
+                    continue
+                else:
+                    edge_mask = explanation[i].edge_imp.cpu().numpy().tolist()
+                    break
+        except:
+            raise ValueError("Ground truth explanation is empty.")
         # print(edge_mask)
     else:
         edge_mask = explanation["edge_mask"].tolist()

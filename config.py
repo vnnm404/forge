@@ -12,7 +12,7 @@ def load_args():
         type=str,
         default="Benzene",
         help="The dataset to use",
-        choices=["Benzene", "AlkaneCarbonyl", "Mutagenicity", "FluorideCarbonyl"],
+        choices=["Benzene", "AlkaneCarbonyl", "Mutagenicity", "FluorideCarbonyl", "ShapeGGen"],
     )
     parser.add_argument(
         "--model",

@@ -1,5 +1,6 @@
 from typing import List, Optional, Union
 import torch
+from torch_geometric.data import Data
 from torch_geometric.explain import (
     Explainer,
     GNNExplainer,
@@ -11,7 +12,7 @@ from torch_geometric.explain import Explanation as PyGExplanation
 from data import ComplexDataset
 from graphxai.utils.explanation import Explanation as GraphXAIExplanation
 from graphxai.metrics.metrics_graph import graph_exp_acc_graph
-from graphxai.datasets.dataset import GraphDataset
+from graphxai.datasets.dataset import GraphDataset, NodeDataset
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -26,6 +27,7 @@ from time import time
 import networkx as nx
 from config import args
 import os
+from torch_geometric.utils import k_hop_subgraph
 
 
 def get_explanation_algorithm(name):
@@ -62,7 +64,7 @@ def initialise_explainer(
         edge_mask_type=edge_mask_type,
         model_config=dict(
             mode=task,
-            task_level="graph",
+            task_level=args.task_level,
             return_type="probs",
         ),
     )
@@ -79,16 +81,16 @@ def explain_graph_dataset(explainer: Explainer, dataset: GraphDataset, num=50):
 
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
-        pred = explainer(
-            data.x, edge_index=data.edge_index, batch=data.batch
-        )
+        pred = explainer(data.x, edge_index=data.edge_index, batch=data.batch)
         if args.explanation_aggregation == "topk":
-            k = int(0.25*len(pred["edge_mask"]))
+            k = int(0.25 * len(pred["edge_mask"]))
             # take top k edges as 1 and rest as 0
-            pred["edge_mask"] = (pred["edge_mask"] > pred["edge_mask"].topk(k).values.min()).float()
+            pred["edge_mask"] = (
+                pred["edge_mask"] > pred["edge_mask"].topk(k).values.min()
+            ).float()
         elif args.explanation_aggregation == "threshold":
             pred["edge_mask"] = pred["edge_mask"] > 0.5
-        
+
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
     return pred_explanations, ground_truth_explanations
@@ -121,7 +123,7 @@ def explanation_accuracy(
 
         if len(gt_list) == 0:
             continue
-        
+
         # pred_gxai = GraphXAIExplanation(edge_imp=pred_edge_mask)
 
         # _,_,acc = graph_exp_acc_graph(gt_list, pred_gxai)
@@ -151,7 +153,8 @@ def explanation_accuracy(
                     max_gt_auc = edge_mask_auc
                     best_gt_edge_mask = gt_edge_mask
                 loop_flag = True  # loop has been executed at least once
-            except:
+            except Exception as e:
+                print(e)
                 continue
         if not loop_flag:
             continue
@@ -201,7 +204,7 @@ def visualise_explanation(
         idx_to_take = 0
         while gt_explanation[idx_to_take].edge_imp.sum().item() == 0:
             idx_to_take += 1
-            
+
         gt_edge_mask = gt_explanation[idx_to_take].edge_imp.reshape(-1, 1)
 
         # heatmap for predicted explanation
@@ -353,10 +356,10 @@ def remove_type_2_nodes(data):
     """
     Removes nodes of type '2' which are assumed to be at the end of the node list.
     All edges connected to these nodes are also removed.
-    
+
     Parameters:
     - data (Data): The input graph data object.
-    
+
     Returns:
     - Data: The updated graph data object with type '2' nodes and associated edges removed.
     """
@@ -366,29 +369,30 @@ def remove_type_2_nodes(data):
     # Determine the cutoff index where nodes of type '2' start
     # Since type '2' nodes are at the end, find the first occurrence of '2' in the node_type array
     cutoff_index = (data.node_type == 2).nonzero(as_tuple=True)[0][0]
-    
+
     # Update node features and types by excluding type '2' nodes
     data.x = data.x[:cutoff_index]
     data.node_type = data.node_type[:cutoff_index]
-    
+
     # Create a mask for edges to keep only those that do not connect to type '2' nodes
     edge_mask = data.edge_index[0] < cutoff_index
     edge_mask &= data.edge_index[1] < cutoff_index
-    
+
     # Apply the mask to edge_index and edge_type
     data.edge_index = data.edge_index[:, edge_mask]
     data.edge_type = data.edge_type[edge_mask]
-    
+
     return data
+
 
 def remove_type_1_nodes(data):
     """
     Removes nodes of type '1' which are assumed to be at the end of the node list.
     All edges connected to these nodes are also removed.
-    
+
     Parameters:
     - data (Data): The input graph data object.
-    
+
     Returns:
     - Data: The updated graph data object with type '1' nodes and associated edges removed.
     """
@@ -396,16 +400,16 @@ def remove_type_1_nodes(data):
         return data
 
     cutoff_index = (data.node_type == 1).nonzero(as_tuple=True)[0][0]
-    
+
     data.x = data.x[:cutoff_index]
     data.node_type = data.node_type[:cutoff_index]
-    
+
     edge_mask = data.edge_index[0] < cutoff_index
     edge_mask &= data.edge_index[1] < cutoff_index
-    
+
     data.edge_index = data.edge_index[:, edge_mask]
     data.edge_type = data.edge_type[edge_mask]
-    
+
     return data
 
 
@@ -427,13 +431,11 @@ def explain_cell_complex_dataset(explainer: Explainer, dataset: ComplexDataset, 
         data = remove_type_2_nodes(data)
         # data = remove_type_1_nodes(data)
 
-        pred = explainer(
-            data.x, edge_index=data.edge_index, batch=data.batch
-        )
+        pred = explainer(data.x, edge_index=data.edge_index, batch=data.batch)
         edge_mask = (spread_cycle_wise(data, pred, mapping) / 3.5).tanh()
-        
+
         if args.explanation_aggregation == "topk":
-            k = int(0.25*len(edge_mask))
+            k = int(0.25 * len(edge_mask))
             # take top k edges as 1 and rest as 0
             pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
         elif args.explanation_aggregation == "threshold":
@@ -450,6 +452,81 @@ def explain_dataset(
         return explain_cell_complex_dataset(explainer, dataset, num)
     elif isinstance(dataset, GraphDataset):
         return explain_graph_dataset(explainer, dataset, num)
+
+
+def explain_nodes_graphs(explainer: Explainer, data: Data, dataset: NodeDataset):
+    pred_explanations = []
+    gt_explanations = []
+    for i in tqdm(range(len(data.test_mask))):
+        if data.test_mask[i] == 0:
+            continue
+        expl = explainer(data.x, data.edge_index, index=i)
+        _, _, _, hard_edge_mask = k_hop_subgraph(
+            i, num_hops=2, edge_index=data.edge_index
+        )
+        pred_edge_mask = []
+        for j in range(len(hard_edge_mask)):
+            if hard_edge_mask[j]:
+                pred_edge_mask.append(expl["edge_mask"][j])
+        pred_edge_mask = torch.stack(pred_edge_mask)
+
+        if args.explanation_aggregation == "topk":
+            k = int(0.25 * len(pred_edge_mask))
+            # take top k edges as 1 and rest as 0
+            pred_edge_mask = (
+                pred_edge_mask >= pred_edge_mask.topk(k).values.min()
+            ).float()
+        elif args.explanation_aggregation == "threshold":
+            pred_edge_mask = (pred_edge_mask > 0.5).float()
+        expl["edge_mask"] = pred_edge_mask
+        pred_explanations.append(expl)
+        gt_explanations.append(dataset.get_explanation(i))
+    return pred_explanations, gt_explanations
+
+def explain_nodes_complex(
+    explainer: Explainer, data: Data, dataset: NodeDataset, mapping
+):
+    pred_explanations = []
+    gt_explanations = []
+    for i in tqdm(range(len(data.test_mask))):
+        if data.test_mask[i] == 0:
+            continue
+        
+        expl = explainer(data.x, data.edge_index, index=i)
+        _, _, _, hard_edge_mask = k_hop_subgraph(
+            i, num_hops=2, edge_index=data.edge_index
+        )
+        
+        std_edge_mask = (
+            spread_cycle_wise(remove_type_2_nodes(data), expl, mapping) / 3.5
+        ).tanh()
+
+        pred_edge_mask = []
+        for j in range(len(std_edge_mask)):
+            if hard_edge_mask[j]:
+                pred_edge_mask.append(expl["edge_mask"][j])
+        pred_edge_mask = torch.stack(pred_edge_mask)
+
+        if args.explanation_aggregation == "topk":
+            k = int(0.25 * len(pred_edge_mask))
+            # take top k edges as 1 and rest as 0
+            pred_edge_mask = (
+                pred_edge_mask >= pred_edge_mask.topk(k).values.min()
+            ).float()
+        elif args.explanation_aggregation == "threshold":
+            pred_edge_mask = (pred_edge_mask > 0.5).float()
+        expl["edge_mask"] = pred_edge_mask
+        pred_explanations.append(expl)
+        gt_explanations.append(dataset.get_explanation(i))
+    return pred_explanations, gt_explanations
+
+def explain_nodes(explainer: Explainer, data: Data, dataset, mapping=None, type="g"):
+    if type == "g":
+        return explain_nodes_graphs(explainer, data, dataset)
+    elif type == "c":
+        return explain_nodes_complex(explainer, data, dataset, mapping)
+    else:
+        raise NotImplementedError(f"Node explanation for type {type} is not implemented.")
 
 
 def save_to_graphml(data, explanation, outdir, fname, is_gt=False):

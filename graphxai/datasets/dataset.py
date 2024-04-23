@@ -126,6 +126,13 @@ class NodeDataset:
     def download(self):
         """TODO: Implement"""
         pass
+    
+    def get_explanation(self, node_idx: int):
+        """
+        Args:
+            node_idx (int): Node index for which to get explanation
+        """
+        return self.explanations[node_idx]
 
     def get_enclosing_subgraph(self, node_idx: int):
         """

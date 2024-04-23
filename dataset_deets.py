@@ -1,6 +1,7 @@
 from graphxai.datasets import Benzene, AlkaneCarbonyl, GraphDataset, Mutagenicity, FluorideCarbonyl
 import csv
 from tqdm import tqdm
+import torch
 
 def load_dataset(name="Benzene"):
     if name == "Benzene":
@@ -45,5 +46,7 @@ def save_to_csv(dataset_names):
             data_stats_writer.writerow([name, avg_nodes, avg_edges, avg_degree, n_graphs])
 
 if __name__ == '__main__':
-    dataset_names = ['Benzene', 'AlkaneCarbonyl', 'Mutagenicity', 'FluorideCarbonyl']
-    save_to_csv(dataset_names)
+    # dataset_names = ['Benzene', 'AlkaneCarbonyl', 'Mutagenicity', 'FluorideCarbonyl']
+    # save_to_csv(dataset_names)
+    dataset = torch.load("data/SG-SmallEx.pt")
+    print(dataset)

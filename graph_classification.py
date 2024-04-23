@@ -1,5 +1,5 @@
 from data import load_dataset, get_data_loaders, load_dataset_as_complex
-from graph_models import load_model
+from models_graph import load_model
 from eval_utils import train, test
 from explain_utils import (
     initialise_explainer,

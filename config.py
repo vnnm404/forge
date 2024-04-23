@@ -1,5 +1,6 @@
 import torch
 import argparse
+from time import gmtime, strftime, time
 
 
 def load_args():
@@ -93,7 +94,7 @@ def load_args():
     parser.add_argument(
         "--save_explanation_dir",
         type=str,
-        default=None,
+        default="explanations",
         help="The directory to save explanations",
     )
     parser.add_argument(
@@ -115,10 +116,19 @@ def load_args():
         help="The level of the explanation task",
         choices=["graph", "node"],
     )
+    parser.add_argument(
+        "--explanation_aggregation",
+        type=str,
+        default="threshold",
+        help="The aggregation method for node-level explanations",
+        choices=["threshold", "topk"],
+    )
     return parser.parse_args()
 
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = 'cpu'
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 args = load_args()
-args.exp_name = f"{args.task_level}_{args.dataset}_{args.model}_{args.explanation_algorithm}"
+args.exp_name = (
+    f"{args.task_level}_{args.dataset}_{args.model}_{args.explanation_algorithm}"
+)
+args.time = strftime("%Y-%m-%d-%H-%M-%S", gmtime())

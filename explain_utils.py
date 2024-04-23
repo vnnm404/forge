@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from time import time
 import networkx as nx
-from config import device
+from config import args
 import os
 
 
@@ -82,11 +82,13 @@ def explain_graph_dataset(explainer: Explainer, dataset: GraphDataset, num=50):
         pred = explainer(
             data.x, edge_index=data.edge_index, batch=data.batch
         )
-        k = int(0.25*len(pred["edge_mask"]))
-        # take top k edges as 1 and rest as 0
-        pred["edge_mask"] = (pred["edge_mask"] > pred["edge_mask"].topk(k).values.min()).float()
+        if args.explanation_aggregation == "topk":
+            k = int(0.25*len(pred["edge_mask"]))
+            # take top k edges as 1 and rest as 0
+            pred["edge_mask"] = (pred["edge_mask"] > pred["edge_mask"].topk(k).values.min()).float()
+        elif args.explanation_aggregation == "threshold":
+            pred["edge_mask"] = pred["edge_mask"] > 0.5
         
-        # pred["edge_mask"] = pred["edge_mask"] > 0.5
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
     return pred_explanations, ground_truth_explanations
@@ -165,7 +167,7 @@ def explanation_accuracy(
 
         valid_explanations_count += 1  # increment valid explanations count as the loop has been executed at least once
 
-    acc = acc / len(predicted_explanation)
+    acc = acc / valid_explanations_count
     precision = precision / valid_explanations_count
     recall = recall / valid_explanations_count
     f1 = f1 / valid_explanations_count
@@ -429,10 +431,13 @@ def explain_cell_complex_dataset(explainer: Explainer, dataset: ComplexDataset, 
             data.x, edge_index=data.edge_index, batch=data.batch
         )
         edge_mask = (spread_cycle_wise(data, pred, mapping) / 3.5).tanh()
-        k = int(0.25*len(edge_mask))
-        # take top k edges as 1 and rest as 0
-        pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
-        # pred["edge_mask"] = edge_mask
+        
+        if args.explanation_aggregation == "topk":
+            k = int(0.25*len(edge_mask))
+            # take top k edges as 1 and rest as 0
+            pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
+        elif args.explanation_aggregation == "threshold":
+            pred["edge_mask"] = (edge_mask > 0.5).float()
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
     return pred_explanations, ground_truth_explanations
@@ -451,16 +456,15 @@ def save_to_graphml(data, explanation, outdir, fname, is_gt=False):
     edge_list = data.edge_index.t().tolist()
     edge_mask = None
     if is_gt:
-        try:
-            for i in range(len(explanation)):
-                if explanation[i].edge_imp.sum().item() == 0:
-                    continue
-                else:
-                    edge_mask = explanation[i].edge_imp.cpu().numpy().tolist()
-                    break
-        except:
-            raise ValueError("Ground truth explanation is empty.")
-        # print(edge_mask)
+        print(len(explanation))
+        for i in range(len(explanation)):
+            if explanation[i].edge_imp.sum().item() == 0:
+                continue
+            else:
+                edge_mask = explanation[i].edge_imp.cpu().numpy().tolist()
+                break
+        if edge_mask is None:
+            edge_mask = explanation[0].edge_imp.cpu().numpy().tolist()
     else:
         edge_mask = explanation["edge_mask"].tolist()
     G = nx.Graph()

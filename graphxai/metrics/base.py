@@ -52,7 +52,7 @@ def graph_exp_acc(
     true_nodes = [gt_exp.enc_subgraph.nodes[i].item() for i in relative_positives]
 
     # Accessing the enclosing subgraph. Will be the same for both explanation.:
-    exp_subgraph = generated_exp.enc_subgraph
+    exp_subgraph = gt_exp.enc_subgraph
 
     calc_node_imp = generated_exp.node_imp
 

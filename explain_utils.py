@@ -31,6 +31,7 @@ import networkx as nx
 from config import args
 import os
 from torch_geometric.utils import k_hop_subgraph
+from config import device
 
 
 def get_explanation_algorithm(name):
@@ -66,7 +67,7 @@ def initialise_explainer(
                 epochs=explanation_epochs,
                 lr=explanation_lr,
                 num_layers=2
-            ),
+            ).to(device),
             node_mask_type=node_mask_type,
             edge_mask_type=edge_mask_type,
             model_config=dict(
@@ -101,6 +102,8 @@ def explain_graph_dataset(explainer: Union[Explainer, _BaseExplainer], dataset: 
     ground_truth_explanations = []
     for i in tqdm(range(num)):
         data, gt_explanation = dataset[i]
+        data = data.to(device)
+        gt_explanation = gt_explanation.to(device)
 
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."

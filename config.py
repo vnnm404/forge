@@ -138,7 +138,8 @@ def load_args():
     return parser.parse_args()
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = 'cpu'
 args = load_args()
 args.exp_name = (
     f"{args.task_level}_{args.dataset}_{args.model}_{args.explanation_algorithm}"

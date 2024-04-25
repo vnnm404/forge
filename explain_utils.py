@@ -103,7 +103,7 @@ def explain_graph_dataset(explainer: Union[Explainer, _BaseExplainer], dataset: 
     for i in tqdm(range(num)):
         data, gt_explanation = dataset[i]
         data = data.to(device)
-        gt_explanation = gt_explanation.to(device)
+        # gt_explanation = gt_explanation.to(device)
 
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."

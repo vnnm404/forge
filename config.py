@@ -123,6 +123,18 @@ def load_args():
         help="The aggregation method for node-level explanations",
         choices=["threshold", "topk"],
     )
+    parser.add_argument(
+        "--test_graph_train_complex_dataset",
+        type=bool,
+        default=False,
+        help="Whether to test explainer with model trained on graph, and providing complex dataset",
+    )
+    parser.add_argument(
+        "--test_complex_train_graph_dataset",
+        type=bool,
+        default=False,
+        help="Whether to test explainer with model trained on complexes, and providing graph dataset",
+    )
     return parser.parse_args()
 
 

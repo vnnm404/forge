@@ -154,7 +154,6 @@ def explanation_accuracy(
                     best_gt_edge_mask = gt_edge_mask
                 loop_flag = True  # loop has been executed at least once
             except Exception as e:
-                print(e)
                 continue
         if not loop_flag:
             continue

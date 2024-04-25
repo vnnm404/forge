@@ -139,7 +139,6 @@ def save_graphml(edge_idxs, explanation, type, is_gt=False):
             )
             count += 1
         except Exception as e:
-            print(e)
             pass
         idx += 1
 

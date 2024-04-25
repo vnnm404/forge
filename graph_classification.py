@@ -122,6 +122,23 @@ def graph_classification():
 
     if args.save_explanation_graphml:
         save_graphml(dataset, graph_pred_explanations, "graph")
+    
+    if args.test_graph_train_complex_explain:
+        print("Testing explainer with model trained on graph, and providing complex dataset.")
+        complex_dataset, _, _ = load_complex_data()
+        explain(
+            model=graph_model,
+            dataset=dataset,
+        )
+
+    if args.visualise:
+        visualise_explanation(graph_pred_explanations[1], ground_truth_explanations[1])
+
+    if args.save_explanation_dir:
+        save_metrics(metrics, args.exp_name, "graph")
+
+    if args.save_explanation_graphml:
+        save_graphml(dataset, graph_pred_explanations, "graph")
 
     ######### CELL COMPLEX ##########################
     complex_dataset, train_loader, test_loader = load_complex_data()
@@ -131,6 +148,13 @@ def graph_classification():
     complex_pred_explanations, _, complex_metrics = explain(
         model=model, dataset=complex_dataset
     )
+    
+    if args.test_complex_train_graph_explain:
+        print("Testing explainer with model trained on complexes, and providing graph dataset.")
+        explain(
+            model=model,
+            dataset=dataset,
+        )
 
     if args.visualise:
         visualise_explanation(

@@ -457,11 +457,12 @@ def explain_dataset(
 def explain_nodes_graphs(explainer: Explainer, data: Data, dataset: NodeDataset):
     pred_explanations = []
     gt_explanations = []
+    edge_indices = []
     for i in tqdm(range(len(data.test_mask))):
         if data.test_mask[i] == 0:
             continue
         expl = explainer(data.x, data.edge_index, index=i)
-        _, _, _, hard_edge_mask = k_hop_subgraph(
+        _, edge_index, _, hard_edge_mask = k_hop_subgraph(
             i, num_hops=2, edge_index=data.edge_index
         )
         pred_edge_mask = []
@@ -481,22 +482,34 @@ def explain_nodes_graphs(explainer: Explainer, data: Data, dataset: NodeDataset)
         expl["edge_mask"] = pred_edge_mask
         pred_explanations.append(expl)
         gt_explanations.append(dataset.get_explanation(i))
-    return pred_explanations, gt_explanations
+        edge_indices.append(edge_index)
+    return pred_explanations, gt_explanations, edge_indices
+
+def remove_extra_edges(num_nodes, edge_index):
+    # convert to edge list
+    edge_list = edge_index.t().tolist()
+    # remove edges that have nodes greater than num_nodes
+    edge_list = [edge for edge in edge_list if edge[0] < num_nodes and edge[1] < num_nodes]
+    # convert back to edge index
+    edge_index = torch.tensor(edge_list).t().contiguous()
+    return edge_index
 
 def explain_nodes_complex(
     explainer: Explainer, data: Data, dataset: NodeDataset, mapping
 ):
     pred_explanations = []
     gt_explanations = []
+    edge_indices = []
+    type_0_nodes = (data.node_type == 0).sum().item()
     for i in tqdm(range(len(data.test_mask))):
         if data.test_mask[i] == 0:
             continue
         
         expl = explainer(data.x, data.edge_index, index=i)
-        _, _, _, hard_edge_mask = k_hop_subgraph(
-            i, num_hops=2, edge_index=data.edge_index
+        _, edge_index, _, hard_edge_mask = k_hop_subgraph(
+            i, num_hops=2, edge_index=data.edge_index,
         )
-        
+        edge_index = remove_extra_edges(type_0_nodes, edge_index)
         std_edge_mask = (
             spread_cycle_wise(remove_type_2_nodes(data), expl, mapping) / 3.5
         ).tanh()
@@ -506,7 +519,6 @@ def explain_nodes_complex(
             if hard_edge_mask[j]:
                 pred_edge_mask.append(expl["edge_mask"][j])
         pred_edge_mask = torch.stack(pred_edge_mask)
-
         if args.explanation_aggregation == "topk":
             k = int(0.25 * len(pred_edge_mask))
             # take top k edges as 1 and rest as 0
@@ -518,7 +530,8 @@ def explain_nodes_complex(
         expl["edge_mask"] = pred_edge_mask
         pred_explanations.append(expl)
         gt_explanations.append(dataset.get_explanation(i))
-    return pred_explanations, gt_explanations
+        edge_indices.append(edge_index)
+    return pred_explanations, gt_explanations, edge_indices
 
 def explain_nodes(explainer: Explainer, data: Data, dataset, mapping=None, type="g"):
     if type == "g":
@@ -551,3 +564,34 @@ def save_to_graphml(data, explanation, outdir, fname, is_gt=False):
     G.add_weighted_edges_from(weighted_edges)
     out_path = os.path.join(outdir, fname)
     nx.write_graphml(G, out_path)
+
+def save_node_graph_to_graphml(edge_index, explanation,  node_idx, outdir, fname, is_gt=False):
+    edge_list = edge_index.t().tolist()
+    edge_mask = None
+    
+    # count number of nodes 
+    
+    if is_gt:
+        enc_subgraph = explanation[0].enc_subgraph
+        edge_index = enc_subgraph.edge_index
+        edge_list = edge_index.t().tolist()
+        edge_mask = enc_subgraph.edge_mask.cpu().numpy().tolist()
+    else:
+        edge_mask = explanation["edge_mask"].tolist()
+    G = nx.Graph()
+    weighted_edges = [
+        (edge_list[i][0], edge_list[i][1], edge_mask[i]) for i in range(len(edge_list))
+    ]
+    G.add_weighted_edges_from(weighted_edges)
+    node_attr = {}
+    for i in G.nodes:
+        if i == node_idx:
+            node_attr[i] = 1
+        else:
+            node_attr[i] = 0
+    nx.set_node_attributes(G, {i: {"node_attr": node_attr[i]} for i in G.nodes})
+    out_path = os.path.join(outdir, fname)
+    # create directory if it does not exist
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    nx.write_graphml(G, out_path)
+    

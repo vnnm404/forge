@@ -6,12 +6,15 @@ from torch_geometric.explain import (
     GNNExplainer,
     PGExplainer,
     CaptumExplainer,
+    AttentionExplainer,
+    GraphMaskExplainer
 )
 from tqdm import tqdm
 from torch_geometric.explain import Explanation as PyGExplanation
 from data import ComplexDataset
 from graphxai.utils.explanation import Explanation as GraphXAIExplanation
-from graphxai.metrics.metrics_graph import graph_exp_acc_graph
+from graphxai.explainers import SubgraphX
+from graphxai.explainers._base import _BaseExplainer
 from graphxai.datasets.dataset import GraphDataset, NodeDataset
 from sklearn.metrics import (
     accuracy_score,
@@ -37,6 +40,10 @@ def get_explanation_algorithm(name):
         return PGExplainer
     elif name == "Captum":
         return CaptumExplainer
+    elif name == "AttentionExplainer":
+        return AttentionExplainer
+    elif name == "GraphMaskExplainer":
+        return GraphMaskExplainer
     raise NotImplementedError(f"Explanation algorithm {name} is not implemented.")
 
 
@@ -46,31 +53,47 @@ def initialise_explainer(
     explanation_epochs=200,
     explanation_lr=0.01,
     task="binary_classification",
-    node_mask_type="object",
+    node_mask_type=None,
     edge_mask_type="object",
 ):
-    if explanation_algorithm_name == "PGExplainer":
-        node_mask_type = None
-    return Explainer(
-        model=model,
-        explanation_type=(
-            "model" if explanation_algorithm_name == "GNNExplainer" else "phenomenon"
-        ),
-        algorithm=get_explanation_algorithm(explanation_algorithm_name)(
-            epochs=explanation_epochs,
-            lr=explanation_lr,
-        ),
-        node_mask_type=node_mask_type,
-        edge_mask_type=edge_mask_type,
-        model_config=dict(
-            mode=task,
-            task_level=args.task_level,
-            return_type="probs",
-        ),
-    )
+    if explanation_algorithm_name != "SubgraphX":
+        return Explainer(
+            model=model,
+            explanation_type=(
+                "model"
+            ),
+            algorithm=get_explanation_algorithm(explanation_algorithm_name)(
+                epochs=explanation_epochs,
+                lr=explanation_lr,
+                num_layers=2
+            ),
+            node_mask_type=node_mask_type,
+            edge_mask_type=edge_mask_type,
+            model_config=dict(
+                mode=task,
+                task_level=args.task_level,
+                return_type="probs",
+            ),
+        )
+    elif explanation_algorithm_name == "SubgraphX":
+        return SubgraphX(
+            model=model,
+            num_hops= 2 if args.task_level == "node" else None,
+        )
 
+def get_graph_level_explanation(explainer: Union[Explainer, _BaseExplainer], data: Data):
+    pred = None
+    if args.explanation_algorithm != "SubgraphX":
+        pred = explainer(data.x, edge_index=data.edge_index, batch=data.batch)
+    elif args.explanation_algorithm == "SubgraphX":
+        pred = explainer.get_explanation_graph(data.x, data.edge_index, forward_kwargs={"batch": data.batch})
+        pred = {
+            "edge_mask": pred.edge_imp
+        }
+    return pred
+    
 
-def explain_graph_dataset(explainer: Explainer, dataset: GraphDataset, num=50):
+def explain_graph_dataset(explainer: Union[Explainer, _BaseExplainer], dataset: GraphDataset, num=50):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
     """
@@ -81,7 +104,7 @@ def explain_graph_dataset(explainer: Explainer, dataset: GraphDataset, num=50):
 
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
-        pred = explainer(data.x, edge_index=data.edge_index, batch=data.batch)
+        pred = get_graph_level_explanation(explainer, data)
         if args.explanation_aggregation == "topk":
             k = int(0.25 * len(pred["edge_mask"]))
             # take top k edges as 1 and rest as 0
@@ -412,7 +435,7 @@ def remove_type_1_nodes(data):
     return data
 
 
-def explain_cell_complex_dataset(explainer: Explainer, dataset: ComplexDataset, num=50):
+def explain_cell_complex_dataset(explainer: Union[Explainer, _BaseExplainer], dataset: ComplexDataset, num=50):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
     """
@@ -430,7 +453,7 @@ def explain_cell_complex_dataset(explainer: Explainer, dataset: ComplexDataset, 
         data = remove_type_2_nodes(data)
         # data = remove_type_1_nodes(data)
 
-        pred = explainer(data.x, edge_index=data.edge_index, batch=data.batch)
+        pred = get_graph_level_explanation(explainer, data)
         edge_mask = (spread_cycle_wise(data, pred, mapping) / 3.5).tanh()
 
         if args.explanation_aggregation == "topk":

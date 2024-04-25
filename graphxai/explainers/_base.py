@@ -164,7 +164,11 @@ class _BaseExplainer:
             prob = self._predict(
                 x, edge_index, return_type="prob", forward_kwargs=forward_kwargs
             )
-            score = prob[:, target_class]
+            # score = prob[:, target_class]
+            if target_class == 1:
+                score = prob
+            else:
+                score = 1 - prob # binary classification
             return score
 
         return get_prob_score

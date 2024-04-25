@@ -123,7 +123,7 @@ def graph_classification():
     if args.save_explanation_graphml:
         save_graphml(dataset, graph_pred_explanations, "graph")
     
-    if args.test_graph_train_complex_explain:
+    if args.test_graph_train_complex_dataset:
         print("Testing explainer with model trained on graph, and providing complex dataset.")
         complex_dataset, _, _ = load_complex_data()
         explain(
@@ -149,7 +149,7 @@ def graph_classification():
         model=model, dataset=complex_dataset
     )
     
-    if args.test_complex_train_graph_explain:
+    if args.test_complex_train_graph_dataset:
         print("Testing explainer with model trained on complexes, and providing graph dataset.")
         explain(
             model=model,

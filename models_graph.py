@@ -18,7 +18,7 @@ def load_model(name="GCN", in_dim=14, hidden_dim=64, out_dim=1):
 class GCN(torch.nn.Module):
     def __init__(self, in_dim=None, hidden_dim=None, out_dim=None):
         super().__init__()
-        self.conv1 = GCNConv(-1, hidden_dim)
+        self.conv1 = GCNConv(in_dim, hidden_dim)
         self.conv2 = GCNConv(hidden_dim, hidden_dim)
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
@@ -29,8 +29,7 @@ class GCN(torch.nn.Module):
         x = self.conv2(x, edge_index)
         x = F.relu(x)
 
-        if args.task_level == "graph":
-            x = global_mean_pool(x, batch)
+        x = global_mean_pool(x, batch)
         x = self.lin(x)
         # sigmoid
         x = F.sigmoid(x)
@@ -41,7 +40,7 @@ class GCN(torch.nn.Module):
 class GAT(torch.nn.Module):
     def __init__(self, in_dim=None, hidden_dim=None, out_dim=None):
         super().__init__()
-        self.conv1 = GATConv(-1, hidden_dim)
+        self.conv1 = GATConv(in_dim, hidden_dim)
         self.conv2 = GATConv(hidden_dim, hidden_dim)
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
@@ -63,7 +62,7 @@ class GAT(torch.nn.Module):
 class GIN(torch.nn.Module):
     def __init__(self, in_dim=None, hidden_dim=None, out_dim=None):
         super(GIN, self).__init__()
-        self.mlp1 = torch.nn.Linear(-1, hidden_dim)
+        self.mlp1 = torch.nn.Linear(in_dim, hidden_dim)
         self.conv1 = GINConv(self.mlp1)
         self.mlp2 = torch.nn.Linear(hidden_dim, hidden_dim)
         self.conv2 = GINConv(self.mlp2)

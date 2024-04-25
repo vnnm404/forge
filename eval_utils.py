@@ -26,8 +26,8 @@ def train(model, data_loader, val_loader, model_path, epochs=100):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(model.state_dict(), model_path)
-        
         print(f"Epoch: {_}, Best: {best_val_loss}, Val Loss: {val_loss}")
+    model = torch.load(model_path)
     return best_val_loss
 
 

@@ -274,14 +274,14 @@ class SubgraphX(_BaseExplainer):
         if label is None:
             self.model.eval()
             pred = self.model(x, edge_index, **forward_kwargs)
-            label = int(pred.argmax(dim=1).item())
+            label = pred > 0.5
 
         # collect all the class index
-        logits = self.model(x, edge_index, **forward_kwargs)
-        probs = F.softmax(logits, dim=-1)
-        probs = probs.squeeze()
+        # logits = self.model(x, edge_index, **forward_kwargs)
+        # probs = F.softmax(logits, dim=-1)
+        # probs = probs.squeeze()
 
-        prediction = probs.argmax(-1)
+        # prediction = probs.argmax(-1)
 
         value_func = self._prob_score_func_graph(target_class=label)
 

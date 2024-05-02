@@ -453,11 +453,20 @@ def explain_cell_complex_dataset(explainer: Union[Explainer, _BaseExplainer], da
         # print(data.node_type)
         # print(mapping)
 
-        data = remove_type_2_nodes(data)
-        # data = remove_type_1_nodes(data)
+        if args.remove_type_2_nodes:
+            data = remove_type_2_nodes(data)
+        if args.remove_type_1_nodes:
+            data = remove_type_1_nodes(data)
 
         pred = get_graph_level_explanation(explainer, data)
-        edge_mask = (spread_cycle_wise(data, pred, mapping) / 3.5).tanh()
+        
+        edge_mask = None
+        if args.spread_strategy == "cycle_wise":
+            edge_mask = (spread_cycle_wise(data, pred, mapping) / 3.5).tanh()
+        elif args.spread_strategy == "edge_wise":
+            edge_mask = (spread_edge_wise(data, pred, mapping) / 3.5).tanh()
+        else:
+            raise NotImplementedError(f"Spread strategy {args.spread_strategy} is not implemented.")
 
         if args.explanation_aggregation == "topk":
             k = int(0.25 * len(edge_mask))

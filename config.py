@@ -2,7 +2,6 @@ import torch
 import argparse
 from time import gmtime, strftime, time
 
-
 def load_args():
     parser = argparse.ArgumentParser(
         description="HOGE: Higher Order Graph Explanations"
@@ -12,7 +11,7 @@ def load_args():
         type=str,
         default="Benzene",
         help="The dataset to use",
-        choices=["Benzene", "AlkaneCarbonyl", "Mutagenicity", "FluorideCarbonyl", "House", "Triangle", "Diamond"],
+        choices=["Benzene", "AlkaneCarbonyl", "Mutagenicity", "FluorideCarbonyl", "House", "Triangle", "Diamond", "Wheel"],
     )
     parser.add_argument(
         "--model",
@@ -135,11 +134,31 @@ def load_args():
         default=False,
         help="Whether to test explainer with model trained on complexes, and providing graph dataset",
     )
+    parser.add_argument(
+        "--remove_type_2_nodes",
+        type=bool,
+        default=False,
+        help="Whether to remove type 2 nodes (cycles) from the dataset",
+    )
+    parser.add_argument(
+        "--remove_type_1_nodes",
+        type=bool,
+        default=False,
+        help="Whether to remove type 1 nodes (edges) from the dataset",
+    )
+    parser.add_argument(
+        "spread_strategy",
+        type=str,
+        default="cycle_wise",
+        help="The strategy for spreading the explanation",
+        choices=["cycle_wise", "edge_wise"],
+    )
+    
     return parser.parse_args()
 
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = 'cpu'
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = 'cpu'
 args = load_args()
 args.exp_name = (
     f"{args.task_level}_{args.dataset}_{args.model}_{args.explanation_algorithm}"

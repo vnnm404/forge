@@ -46,7 +46,7 @@ def setup_model(train_loader, test_loader, type="graphs"):
     except:
         print("Training model...")
         final_loss = train(
-            model, train_loader, test_loader, model_path, epochs=args.graph_epochs
+            model, train_loader, test_loader, model_path, epochs= args.graph_epochs if type == "graphs" else args.complex_epochs
         )
         print(f"Final loss: {final_loss}")
 
@@ -105,6 +105,7 @@ def save_graphml(dataset, explanation, type, is_gt=False):
 
 def graph_classification():
     ########### GRAPH ############################
+    print("Running graph setup")
     dataset, train_loader, test_loader = load_graph_data()
     graph_model = setup_model(
         train_loader=train_loader, test_loader=test_loader, type="graphs"
@@ -141,6 +142,8 @@ def graph_classification():
         save_graphml(dataset, graph_pred_explanations, "graph")
 
     ######### CELL COMPLEX ##########################
+    print("Running complex setup")
+    
     complex_dataset, train_loader, test_loader = load_complex_data()
     model = setup_model(
         train_loader=train_loader, test_loader=test_loader, type="complexes"

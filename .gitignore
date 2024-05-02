@@ -8,6 +8,7 @@ trained_models/*
 graphml/*
 explanations/*
 data/
+final_models/
 
 !figs/.gitkeep
 !trained_models/.gitkeep

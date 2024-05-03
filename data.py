@@ -5,17 +5,17 @@ from torch_geometric.loader import DataLoader
 import torch
 import networkx as nx
 import numpy as np
+from config import args
 
-
-def load_dataset(name="Benzene"):
+def load_dataset(name="Benzene", seed=args.start_seed):
     if name == "Benzene":
-        return Benzene()
+        return Benzene(seed=seed)
     elif name == "AlkaneCarbonyl":
-        return AlkaneCarbonyl()
+        return AlkaneCarbonyl(seed=seed)
     elif name == "Mutagenicity":
-        return Mutagenicity(root="data/")
+        return Mutagenicity(root="data/", seed=seed)
     elif name == "FluorideCarbonyl":
-        return FluorideCarbonyl()
+        return FluorideCarbonyl(seed=seed)
     else:
         raise NotImplementedError(f"Dataset {name} is not implemented.")
 
@@ -191,11 +191,11 @@ def lift_dataset(dataset: GraphDataset) -> ComplexDataset:
     return ComplexDataset(dataset)
 
 
-def load_dataset_as_complex(name="Benzene") -> ComplexDataset:
+def load_dataset_as_complex(name="Benzene", seed=args.start_seed) -> ComplexDataset:
     """
     Loads the dataset and converts it to a cell complex dataset.
     """
-    return lift_dataset(load_dataset(name))
+    return lift_dataset(load_dataset(name, seed))
 
 
 def get_graph_data_loaders(dataset: GraphDataset, batch_size=32) -> Tuple[DataLoader]:

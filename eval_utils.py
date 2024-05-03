@@ -1,6 +1,5 @@
 import torch
 from config import device
-from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
@@ -26,7 +25,7 @@ def train(model, data_loader, val_loader, model_path, epochs=100):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(model.state_dict(), model_path)
-        print(f"Epoch: {_}, Best: {best_val_loss}, Val Loss: {val_loss}")
+        print(f"Epoch: {_}, Best: {best_val_loss}, Val Loss: {val_loss}", end="\r")
     model = torch.load(model_path)
     return best_val_loss
 

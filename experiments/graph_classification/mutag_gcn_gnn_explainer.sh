@@ -10,6 +10,6 @@ python3 main.py \
     --explanation_algorithm GNNExplainer \
     --graph_epochs 50 \
     --complex_epochs 100 \
-    --explanation_epochs 400 \
+    --explanation_epochs 100 \
     --save_explanation_dir explanations \
     --num_explanations 500

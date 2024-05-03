@@ -100,7 +100,7 @@ def explain_graph_dataset(explainer: Union[Explainer, _BaseExplainer], dataset: 
     """
     pred_explanations = []
     ground_truth_explanations = []
-    for i in tqdm(range(num)):
+    for i in tqdm(range(num), desc="Explaining Graphs"):
         data, gt_explanation = dataset[i]
         data = data.to(device)
         # gt_explanation = gt_explanation.to(device)
@@ -444,7 +444,7 @@ def explain_cell_complex_dataset(explainer: Union[Explainer, _BaseExplainer], da
     """
     pred_explanations = []
     ground_truth_explanations = []
-    for i in tqdm(range(num)):
+    for i in tqdm(range(num), desc="Explaining Cell Complexes"):
         data, gt_explanation, mapping = dataset[i]
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
@@ -492,7 +492,7 @@ def explain_nodes_graphs(explainer: Explainer, data: Data, dataset: NodeDataset)
     pred_explanations = []
     gt_explanations = []
     edge_indices = []
-    for i in tqdm(range(len(data.test_mask))):
+    for i in tqdm(range(len(data.test_mask)), desc="Explaining Nodes with graphs"):
         if data.test_mask[i] == 0:
             continue
         expl = explainer(data.x, data.edge_index, index=i)
@@ -535,7 +535,7 @@ def explain_nodes_complex(
     gt_explanations = []
     edge_indices = []
     type_0_nodes = (data.node_type == 0).sum().item()
-    for i in tqdm(range(len(data.test_mask))):
+    for i in tqdm(range(len(data.test_mask)), desc="Explaining Nodes with complexes"):
         if data.test_mask[i] == 0:
             continue
         
@@ -596,7 +596,8 @@ def save_to_graphml(data, explanation, outdir, fname, is_gt=False):
         (edge_list[i][0], edge_list[i][1], edge_mask[i]) for i in range(len(edge_list))
     ]
     G.add_weighted_edges_from(weighted_edges)
-    out_path = os.path.join(outdir, fname)
+    out_path = os.path.join(outdir,f"{args.current_seed}",fname)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     nx.write_graphml(G, out_path)
 
 def save_node_graph_to_graphml(edge_index, explanation,  node_idx, outdir, fname, is_gt=False):
@@ -624,7 +625,7 @@ def save_node_graph_to_graphml(edge_index, explanation,  node_idx, outdir, fname
         else:
             node_attr[i] = 0
     nx.set_node_attributes(G, {i: {"node_attr": node_attr[i]} for i in G.nodes})
-    out_path = os.path.join(outdir, fname)
+    out_path = os.path.join(outdir,f"{args.current_seed}",fname)
     # create directory if it does not exist
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     nx.write_graphml(G, out_path)

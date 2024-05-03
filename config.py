@@ -2,6 +2,7 @@ import torch
 import argparse
 from time import gmtime, strftime, time
 
+
 def load_args():
     parser = argparse.ArgumentParser(
         description="HOGE: Higher Order Graph Explanations"
@@ -11,7 +12,16 @@ def load_args():
         type=str,
         default="Benzene",
         help="The dataset to use",
-        choices=["Benzene", "AlkaneCarbonyl", "Mutagenicity", "FluorideCarbonyl", "House", "Triangle", "Diamond", "Wheel"],
+        choices=[
+            "Benzene",
+            "AlkaneCarbonyl",
+            "Mutagenicity",
+            "FluorideCarbonyl",
+            "House",
+            "Triangle",
+            "Diamond",
+            "Wheel",
+        ],
     )
     parser.add_argument(
         "--model",
@@ -49,7 +59,12 @@ def load_args():
         type=str,
         default="GNNExplainer",
         help="The explanation algorithm to use",
-        choices=["GNNExplainer", "SubgraphX", "AttentionExplainer", "GraphMaskExplainer"],
+        choices=[
+            "GNNExplainer",
+            "SubgraphX",
+            "AttentionExplainer",
+            "GraphMaskExplainer",
+        ],
     )
     parser.add_argument(
         "--batch_size", type=int, default=64, help="The batch size for training"
@@ -147,13 +162,25 @@ def load_args():
         help="Whether to remove type 1 nodes (edges) from the dataset",
     )
     parser.add_argument(
-        "spread_strategy",
+        "--spread_strategy",
         type=str,
         default="cycle_wise",
         help="The strategy for spreading the explanation",
         choices=["cycle_wise", "edge_wise"],
     )
-    
+    parser.add_argument(
+        "--start_seed",
+        type=int,
+        default=0,
+        help="The random seed to start with",
+    )
+    parser.add_argument(
+        "--end_seed",
+        type=int,
+        default=1,
+        help="The random seed to end with (+ 1). Use end_seed = start_seed + 1 for a single seed",
+    )
+
     return parser.parse_args()
 
 

@@ -14,5 +14,6 @@ python3 main.py \
     --save_explanation_dir explanations \
     --num_explanations 50 \
     --remove_type_2_nodes False \
-    --test_graph_train_complex_dataset True \
-    --test_complex_train_graph_dataset True
+    --spread_strategy edge_wise \
+    --start_seed 0 \
+    --end_seed 10

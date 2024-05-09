@@ -1,4 +1,6 @@
+from pprint import pprint
 import torch
+from tqdm import tqdm
 from graphxai.datasets import ShapeGGen
 from models_node import load_model
 from graphxai.gnn_models.node_classification import train, test
@@ -19,6 +21,7 @@ from graphxai.datasets.utils.shapes import (
     triangle,
 )
 
+
 # dataset = torch.load("data/ShapeGGen.pt")
 # print(dataset)
 def shape():
@@ -33,22 +36,30 @@ def shape():
     else:
         return wheel
 
-dataset = ShapeGGen(
-    shape=shape(),
-    model_layers=2,
-    num_subgraphs=15,
-    subgraph_size=12,
-    prob_connection=1,
-    add_sensitive_feature=False,
-    seed=1234,
-)
-
-def load_data():
+def load_data(seed):
+    dataset = ShapeGGen(
+        shape=shape(),
+        model_layers=2,
+        num_subgraphs=15,
+        subgraph_size=12,
+        prob_connection=1,
+        add_sensitive_feature=False,
+        seed=seed,
+    )
     data = dataset.get_graph(use_fixed_split=True)
     return dataset, data
 
 
-def load_data_as_complex():
+def load_data_as_complex(seed):
+    dataset = ShapeGGen(
+        shape=shape(),
+        model_layers=2,
+        num_subgraphs=15,
+        subgraph_size=12,
+        prob_connection=1,
+        add_sensitive_feature=False,
+        seed=seed,
+    )
     data = dataset.get_graph(use_fixed_split=True)
     og_num_nodes = data.x.shape[0]
     complex_data, mapping = graph_to_complex(data)
@@ -145,42 +156,73 @@ def save_graphml(edge_idxs, explanation, type, is_gt=False):
 
 def node_classification():
     ######### Graphs ################
-    dataset, data = load_data()
-    model = setup_model(data, dataset.n_features)
-    pred_explanations, gt_explanations, graph_edge_idxs, metrics = explain(model, data, dataset)
+    print("Running graph setup")
+    graph_metrics = {}
+    for seed in tqdm(range(args.start_seed, args.end_seed)):
+        args.current_seed = seed
+        dataset, data = load_data(seed=seed)
+        model = setup_model(data, dataset.n_features)
+        pred_explanations, gt_explanations, graph_edge_idxs, metrics = explain(
+            model, data, dataset
+        )
+
+        graph_metrics[seed] = metrics
+
+        if args.save_explanation_graphml:
+            save_graphml(
+                graph_edge_idxs,
+                pred_explanations,
+                "graph",
+            )
+
+    best_seed = max(graph_metrics, key=graph_metrics.get("jaccard"))
+    best_metrics = graph_metrics[best_seed]
+    print(f"Best seed for graph explanations: {best_seed}")
+    print(f"Best metrics for graph explanations: ")
+    pprint(best_metrics)
 
     if args.save_explanation_dir:
-        save_metrics(metrics, args.exp_name, "graph")
-
-    if args.save_explanation_graphml:
-        save_graphml(
-            graph_edge_idxs,
-            pred_explanations,
-            "graph",
+        # sort metrics by jaccard score
+        graph_metrics = dict(
+            sorted(graph_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
         )
+        save_metrics(graph_metrics, args.exp_name, "graph")
 
     ######### Complex ################
-    dataset, complex_data, mapping = load_data_as_complex()
-    model = setup_model(complex_data, dataset.n_features)
-    pred_explanations, gt_explanations, complex_edge_idxs, metrics = explain(
-        model, complex_data, dataset, mapping, type="c"
-    )
+    complex_metrics = {}
+    print("Running complex setup")
+
+    for seed in tqdm(range(args.start_seed, args.end_seed)):
+        args.current_seed = seed
+        dataset, complex_data, mapping = load_data_as_complex(seed=seed)
+        model = setup_model(complex_data, dataset.n_features)
+        pred_explanations, gt_explanations, complex_edge_idxs, metrics = explain(
+            model, complex_data, dataset, mapping, type="c"
+        )
+
+        complex_metrics[seed] = metrics
+
+        if args.save_explanation_graphml:
+            save_graphml(
+                complex_edge_idxs,
+                pred_explanations,
+                "complex",
+            )
+
+        ######### GROUND TRUTH ################
+        if args.save_explanation_graphml:
+            save_graphml(complex_edge_idxs, gt_explanations, "ground_truth", is_gt=True)
+
+    # get best seed based on jaccard score
+    best_seed = max(complex_metrics, key=complex_metrics.get("jaccard"))
+    best_metrics = complex_metrics[best_seed]
+    print(f"Best seed for complex explanations: {best_seed}")
+    print(f"Best metrics for complex explanations: ")
+    pprint(best_metrics)
 
     if args.save_explanation_dir:
-        save_metrics(metrics, args.exp_name, "complex")
-
-    if args.save_explanation_graphml:
-        save_graphml(
-            complex_edge_idxs,
-            pred_explanations,
-            "complex",
+        # sort metrics by jaccard score
+        complex_metrics = dict(
+            sorted(complex_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
         )
-
-    ######### GROUND TRUTH ################
-    if args.save_explanation_graphml:
-        save_graphml(
-            complex_edge_idxs,
-            gt_explanations,
-            "ground_truth",
-            is_gt=True
-        )
+        save_metrics(complex_metrics, args.exp_name, "complexes")

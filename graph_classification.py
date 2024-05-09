@@ -146,7 +146,7 @@ def graph_classification():
             print(
                 "Testing explainer with model trained on graph, and providing complex dataset."
             )
-            complex_dataset, _, _ = load_complex_data()
+            complex_dataset, _, _ = load_complex_data(seed=seed)
             explain(
                 model=graph_model,
                 dataset=dataset,
@@ -156,9 +156,6 @@ def graph_classification():
             visualise_explanation(
                 graph_pred_explanations[1], ground_truth_explanations[1]
             )
-
-        if args.save_explanation_dir:
-            save_metrics(metrics, args.exp_name, "graph")
 
         if args.save_explanation_graphml:
             save_graphml(dataset, graph_pred_explanations, "graph")
@@ -173,7 +170,7 @@ def graph_classification():
     if args.save_explanation_dir:
         # sort metrics by jaccard score
         graph_metrics = dict(
-            sorted(graph_metrics.items(), key=lambda x: x[1]["jaccard"])
+            sorted(graph_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
         )
         save_metrics(graph_metrics, args.exp_name, "graph")
 
@@ -225,6 +222,6 @@ def graph_classification():
     if args.save_explanation_dir:
         # sort metrics by jaccard score
         complex_metrics = dict(
-            sorted(complex_metrics.items(), key=lambda x: x[1]["jaccard"])
+            sorted(complex_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
         )
         save_metrics(complex_metrics, args.exp_name, "complexes")

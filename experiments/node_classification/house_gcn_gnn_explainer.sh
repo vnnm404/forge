@@ -14,4 +14,6 @@ python3 main.py \
     --explanation_epochs 100 \
     --save_explanation_dir explanations \
     --num_explanations 50 \
-    --save_explanation_graphml graphml \
+    --spread_strategy cycle_wise \
+    --start_seed 0 \
+    --end_seed 10

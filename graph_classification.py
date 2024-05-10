@@ -14,6 +14,7 @@ import torch
 import os
 import json
 from pprint import pprint
+import numpy as np
 
 
 def load_graph_data(seed):
@@ -172,6 +173,23 @@ def graph_classification():
         graph_metrics = dict(
             sorted(graph_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
         )
+
+        # average metrics
+        avg_metrics = {}
+        for key in graph_metrics[0].keys():
+            avg_metrics[key] = sum([x[key] for x in graph_metrics.values()]) / len(
+                graph_metrics
+            )
+
+        graph_metrics["average"] = avg_metrics
+
+        # std dev metrics
+        std_metrics = {}
+        for key in graph_metrics[0].keys():
+            std_metrics[key] = np.std([x[key] for x in graph_metrics.values()])
+
+        graph_metrics["std_dev"] = std_metrics
+
         save_metrics(graph_metrics, args.exp_name, "graph")
 
     ######### CELL COMPLEX ##########################
@@ -224,4 +242,21 @@ def graph_classification():
         complex_metrics = dict(
             sorted(complex_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
         )
+
+        # average metrics
+        avg_metrics = {}
+        for key in complex_metrics[0].keys():
+            avg_metrics[key] = sum([x[key] for x in complex_metrics.values()]) / len(
+                complex_metrics
+            )
+
+        complex_metrics["average"] = avg_metrics
+
+        # std dev metrics
+        std_metrics = {}
+        for key in complex_metrics[0].keys():
+            std_metrics[key] = np.std([x[key] for x in complex_metrics.values()])
+
+        complex_metrics["std_dev"] = std_metrics
+
         save_metrics(complex_metrics, args.exp_name, "complexes")

@@ -157,6 +157,9 @@ def explanation_accuracy(
         for i, gt in enumerate(gt_list):
             try:
                 gt_edge_mask = gt.edge_imp
+                
+                if gt_edge_mask.sum().item() == 0:
+                    continue
 
                 edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
                 edge_mask_precision = precision_score(

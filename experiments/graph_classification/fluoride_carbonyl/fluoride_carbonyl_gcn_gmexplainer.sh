@@ -12,8 +12,8 @@ python3 main.py \
     --complex_epochs 30 \
     --explanation_epochs 100 \
     --save_explanation_dir explanations/ \
-    --num_explanations 200 \
-    --remove_type_2_nodes False \
-    --spread_strategy cycle_wise\
+    --num_explanations 1125 \
+    --remove_type_2_nodes True \
+    --spread_strategy edge_wise \
     --start_seed 0 \
     --end_seed 10

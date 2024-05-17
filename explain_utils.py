@@ -465,9 +465,9 @@ def explain_cell_complex_dataset(explainer: Union[Explainer, _BaseExplainer], da
         
         edge_mask = None
         if args.spread_strategy == "cycle_wise":
-            edge_mask = (spread_cycle_wise(data, pred, mapping) / 3.5).tanh()
+            edge_mask = (spread_cycle_wise(data, pred, mapping)).tanh()
         elif args.spread_strategy == "edge_wise":
-            edge_mask = (spread_edge_wise(data, pred, mapping) / 3.5).tanh()
+            edge_mask = (spread_edge_wise(data, pred, mapping)).tanh()
         else:
             raise NotImplementedError(f"Spread strategy {args.spread_strategy} is not implemented.")
 

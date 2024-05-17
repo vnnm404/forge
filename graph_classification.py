@@ -176,7 +176,7 @@ def graph_classification():
 
         # average metrics
         avg_metrics = {}
-        for key in graph_metrics[0].keys():
+        for key in graph_metrics[seed].keys():
             avg_metrics[key] = sum([x[key] for x in graph_metrics.values()]) / len(
                 graph_metrics
             )
@@ -185,7 +185,7 @@ def graph_classification():
 
         # std dev metrics
         std_metrics = {}
-        for key in graph_metrics[0].keys():
+        for key in graph_metrics[seed].keys():
             std_metrics[key] = np.std([x[key] for x in graph_metrics.values()])
 
         graph_metrics["std_dev"] = std_metrics
@@ -245,7 +245,7 @@ def graph_classification():
 
         # average metrics
         avg_metrics = {}
-        for key in complex_metrics[0].keys():
+        for key in complex_metrics[seed].keys():
             avg_metrics[key] = sum([x[key] for x in complex_metrics.values()]) / len(
                 complex_metrics
             )
@@ -254,7 +254,7 @@ def graph_classification():
 
         # std dev metrics
         std_metrics = {}
-        for key in complex_metrics[0].keys():
+        for key in complex_metrics[seed].keys():
             std_metrics[key] = np.std([x[key] for x in complex_metrics.values()])
 
         complex_metrics["std_dev"] = std_metrics

@@ -2,7 +2,7 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    --dataset AlkaneCarbonyl \
+    --dataset FluorideCarbonyl \
     --model GCN \
     --in_dim 14 \
     --hidden_dim 32 \

@@ -5,9 +5,9 @@ from torch_geometric.loader import DataLoader
 import torch
 import networkx as nx
 import numpy as np
-from config import args
+# from config import args
 
-def load_dataset(name="Benzene", seed=args.start_seed):
+def load_dataset(name="Benzene", seed=0):
     if name == "Benzene":
         return Benzene(seed=seed)
     elif name == "AlkaneCarbonyl":
@@ -191,7 +191,7 @@ def lift_dataset(dataset: GraphDataset) -> ComplexDataset:
     return ComplexDataset(dataset)
 
 
-def load_dataset_as_complex(name="Benzene", seed=args.start_seed) -> ComplexDataset:
+def load_dataset_as_complex(name="Benzene", seed=0) -> ComplexDataset:
     """
     Loads the dataset and converts it to a cell complex dataset.
     """

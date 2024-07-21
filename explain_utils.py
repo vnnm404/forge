@@ -332,8 +332,9 @@ def spread_edge_wise(graph, explanation, mapping):
 
             # print('ERRROR', i)
             # print(edge_type[i], edge_type[i + 1])
-            idx = mapping[3][counter]
-            print(idx)
+            idx = mapping[3][counter][1]
+            # print(mapping)
+            # print("IDX", idx)
             new_edge_mask[idx] += edge_mask[i]
         elif edge_type[i] == 4:
             if last_seen != 4:
@@ -341,7 +342,7 @@ def spread_edge_wise(graph, explanation, mapping):
             else:
                 counter += 1
 
-            idx = mapping[4][counter]
+            idx = mapping[4][counter][1]
             new_edge_mask[idx] += edge_mask[i]
 
         last_seen = edge_type[i]
@@ -388,7 +389,7 @@ def spread_cycle_wise(graph, explanation, mapping, alpha=1.0):
 
             # print('ERRROR', i)
             # print(edge_type[i], edge_type[i + 1])
-            idx_list = mapping[3][counter]
+            idx_list = mapping[3][counter][0]
             for idx in idx_list:
                 new_edge_mask[idx] += (edge_mask[i] - 0.5) * alpha  # alpha is a scaling factor
         elif edge_type[i] == 4:
@@ -397,7 +398,7 @@ def spread_cycle_wise(graph, explanation, mapping, alpha=1.0):
             else:
                 counter += 1
 
-            idx_list = mapping[4][counter]
+            idx_list = mapping[4][counter][0]
             for idx in idx_list:
                 new_edge_mask[idx] += (edge_mask[i] - 0.5)* alpha
 
@@ -478,6 +479,7 @@ def explain_cell_complex_dataset(
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
     """
+    print("EXPLAINING")
     pred_explanations = []
     ground_truth_explanations = []
     count = 0
@@ -513,10 +515,13 @@ def explain_cell_complex_dataset(
         pred = get_graph_level_explanation(explainer, data)
 
         edge_mask = None
+        # print("SPREAD")
         if args.spread_strategy == "cycle_wise":
+            # print("CYCLE")
             edge_mask = norm(spread_cycle_wise(data, pred, mapping, alpha=3.0))
             # edge_mask = (spread_cycle_wise(data, pred, mapping, alpha=1.0)).tanh()
         elif args.spread_strategy == "edge_wise":
+            # print("EDGE")
             edge_mask = (spread_edge_wise(data, pred, mapping)).tanh()
         else:
             raise NotImplementedError(

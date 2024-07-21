@@ -14,7 +14,7 @@ python3 main.py \
     --save_explanation_dir explanations \
     --num_explanations 150 \
     --remove_type_2_nodes True \
-    --spread_strategy cycle_wise\
+    --spread_strategy edge_wise\
     --start_seed 0 \
     --end_seed 10
     # --spread_strategy cycle_wise

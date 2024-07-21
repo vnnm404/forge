@@ -66,7 +66,9 @@ def graph_to_complex(g):
 
     # convert to networkx graph to find cycles
     nx_graph = nx.Graph()
+    # print("EDGE", g.edge_index.t())
     edge_list = g.edge_index.t().tolist()
+    # print(edge_list)
     nx_graph.add_edges_from(edge_list)
     cycles = nx.cycle_basis(nx_graph)
     cycles = [c for c in cycles if len(c) <= 8]
@@ -94,6 +96,8 @@ def graph_to_complex(g):
         edges_in_cycle = []
         c_t_e_edges = []
         e_t_c_edges = []
+        og_cte_to_edge = {}
+        og_etc_to_edge = {}
 
         # connect cycle_node to all nodes in the cycle
         for node in cycle:
@@ -111,6 +115,10 @@ def graph_to_complex(g):
             edges_in_cycle.append(edge_index)
             c_t_e_edges.append(c_t_e_counter)
             e_t_c_edges.append(e_t_c_counter)
+            # og_cte_to_edge.append(edge_index)
+            # og_etc_to_edge.append(edge_index)
+            og_cte_to_edge[c_t_e_counter] = edge_index
+            og_etc_to_edge[e_t_c_counter] = edge_index
 
             # mapping[3][c_t_e_counter] = edge_index
             # mapping[4][e_t_c_counter] = edge_index
@@ -119,10 +127,10 @@ def graph_to_complex(g):
             e_t_c_counter += 1
         
         for edge in c_t_e_edges:
-            mapping[3][edge] = edges_in_cycle
+            mapping[3][edge] = (edges_in_cycle, og_cte_to_edge[edge])
         
         for edge in e_t_c_edges:
-            mapping[4][edge] = edges_in_cycle
+            mapping[4][edge] = (edges_in_cycle, og_etc_to_edge[edge])
 
     hg["cycle_node"].x = torch.tensor(np.array(cycle_nodes), dtype=torch.float32)
     # hg['cycle_node', 'to', 'node'].edge_index = torch.tensor(np.array(cycle_node_to_node), dtype=torch.long).t()

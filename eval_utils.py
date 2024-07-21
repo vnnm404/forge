@@ -4,7 +4,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 
 
 def train(model, data_loader, val_loader, model_path, epochs=100):
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.005, weight_decay=5e-4)
     loss_fn = torch.nn.BCELoss()
     model.train()
     best_val_loss = float("inf")
@@ -25,7 +25,7 @@ def train(model, data_loader, val_loader, model_path, epochs=100):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             torch.save(model.state_dict(), model_path)
-        print(f"Epoch: {_}, Best: {best_val_loss}, Val Loss: {val_loss}", end="\r")
+        print(f"Epoch: {_}, Train Loss: {epoch_loss}, Best: {best_val_loss}, Val Loss: {val_loss}", end="\r")
     model = torch.load(model_path)
     return best_val_loss
 

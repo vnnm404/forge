@@ -308,7 +308,7 @@ class GraphDataset:
                 torch.arange(start=0, end=len(self.graphs)),
                 test_size=split_sizes[1] + split_sizes[2],
                 random_state=self.seed,
-                shuffle=False,
+                shuffle=True,
             )
         else:
             self.test_index = None
@@ -328,7 +328,7 @@ class GraphDataset:
         self.Y = torch.tensor([self.graphs[i].y for i in range(len(self.graphs))]).to(
             self.device
         )
-
+        
     def get_data_list(
         self,
         index,

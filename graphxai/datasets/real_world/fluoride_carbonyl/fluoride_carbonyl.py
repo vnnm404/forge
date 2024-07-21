@@ -1,4 +1,5 @@
 import os
+import random
 import torch
 
 from graphxai.datasets.real_world.extract_google_datasets import load_graphs
@@ -17,9 +18,10 @@ class FluorideCarbonyl(GraphDataset):
 
     def __init__(
         self,
-        split_sizes=(0.7, 0.2, 0.1),
+        split_sizes=(0.8, 0.2, 0),
         seed=None,
         data_path: str = fc_datapath,
+        downsample=True,
         device=None,
     ):
         """
@@ -30,11 +32,32 @@ class FluorideCarbonyl(GraphDataset):
         """
 
         self.device = device
+        self.graphs, self.explanations, self.zinc_ids = load_graphs(data_path)
+        
+        # Downsample because of extreme imbalance:
+        yvals = [self.graphs[i].y for i in range(len(self.graphs))]
+
+        zero_bin = []
+        one_bin = []
+
+        if downsample:
+            for i in range(len(self.graphs)):
+                if self.graphs[i].y == 0:
+                    zero_bin.append(i)
+                else:
+                    one_bin.append(i)
+
+            # Sample down to keep the dataset balanced
+            random.seed(seed)
+            keep_inds = random.sample(zero_bin, k=1 * len(one_bin))
+
+            self.graphs = [self.graphs[i] for i in (keep_inds + one_bin)]
+            self.explanations = [self.explanations[i] for i in (keep_inds + one_bin)]
+            self.zinc_ids = [self.zinc_ids[i] for i in (keep_inds + one_bin)]
 
         # self.graphs, self.explanations, self.zinc_ids = \
         #     load_graphs(data_path, os.path.join(data_path, fc_smiles_df))
 
-        self.graphs, self.explanations, self.zinc_ids = load_graphs(data_path)
 
         super().__init__(
             name="FluorideCarbonyl", seed=seed, split_sizes=split_sizes, device=device

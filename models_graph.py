@@ -27,6 +27,7 @@ class GCN(torch.nn.Module):
         x = F.relu(x)
         x = F.dropout(x, training=self.training)
         x = self.conv2(x, edge_index)
+        x = F.dropout(x, training=self.training)
         x = F.relu(x)
 
         x = global_mean_pool(x, batch)

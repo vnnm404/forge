@@ -15,12 +15,25 @@ import os
 import json
 from pprint import pprint
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def load_graph_data(seed):
     print("Loading dataset...")
     dataset = load_dataset(args.dataset, seed=seed)
     train_loader, test_loader = get_data_loaders(dataset, batch_size=args.batch_size)
+    # get number of samples in each class for train and test loader
+    print("Train loader class distribution:")
+    for i in range(2):
+        print(
+            f"Class {i}: {len([data for data in train_loader.dataset if data.y == i])}"
+        )
+    print("Test loader class distribution:")
+    for i in range(2):
+        print(
+            f"Class {i}: {len([data for data in test_loader.dataset if data.y == i])}"
+        )
     print("Dataset loaded.")
     return dataset, train_loader, test_loader
 
@@ -41,6 +54,7 @@ def setup_model(train_loader, test_loader, type="graphs"):
         out_dim=args.out_dim,
     )
     model.to(device)
+    print(device)
     model_path = os.path.join(
         args.save_dir,
         f"{args.exp_name}",
@@ -203,32 +217,52 @@ def graph_classification():
         model = setup_model(
             train_loader=train_loader, test_loader=test_loader, type="complexes"
         )
+        model = model.to("cpu")
         complex_pred_explanations, _, metrics = explain(
             model=model, dataset=complex_dataset
         )
 
-        if args.test_complex_train_graph_dataset:
-            print(
-                "Testing explainer with model trained on complexes, and providing graph dataset."
-            )
-            explain(
-                model=model,
-                dataset=dataset,
-            )
+        # Determine the number of subplots needed
+        num_arrays = 10
 
-        if args.visualise:
-            visualise_explanation(
-                complex_pred_explanations[1], ground_truth_explanations[1]
-            )
+        # Create a figure with a set of subplots
+        fig, axes = plt.subplots(nrows=num_arrays, ncols=1, figsize=(8, num_arrays * 4))
+
+        # Plot each array on a separate subplot
+        for i, array in enumerate(
+            [c["edge_mask"] for c in complex_pred_explanations][:10]
+        ):
+            ax = axes[i] if num_arrays > 1 else axes
+            cax = ax.matshow(array.reshape(-1, 1), aspect="auto", cmap="viridis")
+            fig.colorbar(cax, ax=ax)
+            ax.set_title(f"Array {i+1}")
+
+        # Adjust layout and display the plot
+        plt.tight_layout()
+        plt.savefig(f"edge_mask_{seed}.png")
+
+        # if args.test_complex_train_graph_dataset:
+        #     print(
+        #         "Testing explainer with model trained on complexes, and providing graph dataset."
+        #     )
+        #     explain(
+        #         model=model,
+        #         dataset=dataset,
+        #     )
+
+        # if args.visualise:
+        #     visualise_explanation(
+        #         complex_pred_explanations[1], ground_truth_explanations[1]
+        # )
 
         complex_metrics[seed] = metrics
 
-        if args.save_explanation_graphml:
-            save_graphml(dataset, complex_pred_explanations, "complexes")
+        # if args.save_explanation_graphml:
+        #     save_graphml(dataset, complex_pred_explanations, "complexes")
 
         ######### SAVE GROUND TRUTH ##########################
-        if args.save_explanation_graphml:
-            save_graphml(dataset, ground_truth_explanations, "gt", is_gt=True)
+        # if args.save_explanation_graphml:
+        #     save_graphml(dataset, ground_truth_explanations, "gt", is_gt=True)
 
     # get best seed based on jaccard score
     best_seed = max(complex_metrics, key=complex_metrics.get("jaccard"))

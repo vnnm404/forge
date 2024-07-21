@@ -7,7 +7,7 @@ from torch_geometric.explain import (
     PGExplainer,
     CaptumExplainer,
     AttentionExplainer,
-    GraphMaskExplainer
+    GraphMaskExplainer,
 )
 from tqdm import tqdm
 from torch_geometric.explain import Explanation as PyGExplanation
@@ -32,6 +32,7 @@ from config import args
 import os
 from torch_geometric.utils import k_hop_subgraph
 from config import device
+import numpy as np
 
 
 def get_explanation_algorithm(name):
@@ -60,13 +61,9 @@ def initialise_explainer(
     if explanation_algorithm_name != "SubgraphX":
         return Explainer(
             model=model,
-            explanation_type=(
-                "model"
-            ),
+            explanation_type=("model"),
             algorithm=get_explanation_algorithm(explanation_algorithm_name)(
-                epochs=explanation_epochs,
-                lr=explanation_lr,
-                num_layers=2
+                epochs=explanation_epochs, lr=explanation_lr, num_layers=2
             ).to(device),
             node_mask_type=node_mask_type,
             edge_mask_type=edge_mask_type,
@@ -79,29 +76,49 @@ def initialise_explainer(
     elif explanation_algorithm_name == "SubgraphX":
         return SubgraphX(
             model=model,
-            num_hops= 2 if args.task_level == "node" else None,
+            num_hops=2 if args.task_level == "node" else None,
         )
 
-def get_graph_level_explanation(explainer: Union[Explainer, _BaseExplainer], data: Data):
+
+def get_graph_level_explanation(
+    explainer: Union[Explainer, _BaseExplainer], data: Data
+):
     pred = None
     if args.explanation_algorithm != "SubgraphX":
         pred = explainer(data.x, edge_index=data.edge_index, batch=data.batch)
     elif args.explanation_algorithm == "SubgraphX":
-        pred = explainer.get_explanation_graph(data.x, data.edge_index, forward_kwargs={"batch": data.batch})
-        pred = {
-            "edge_mask": pred.edge_imp
-        }
+        pred = explainer.get_explanation_graph(
+            data.x, data.edge_index, forward_kwargs={"batch": data.batch}
+        )
+        pred = {"edge_mask": pred.edge_imp}
     return pred
-    
 
-def explain_graph_dataset(explainer: Union[Explainer, _BaseExplainer], dataset: GraphDataset, num=50):
+
+def explain_graph_dataset(
+    explainer: Union[Explainer, _BaseExplainer], dataset: GraphDataset, num=50
+):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
     """
     pred_explanations = []
     ground_truth_explanations = []
-    for i in tqdm(range(num), desc="Explaining Graphs"):
-        data, gt_explanation = dataset[i]
+    count = 0
+    n = 0
+    # for i in tqdm(range(num), desc="Explaining Graphs"):
+    while count < num and n < len(dataset):
+        data, gt_explanation = dataset[n]
+        n += 1
+        if len(gt_explanation) == 0:
+            continue
+
+        zero_flag = True
+        for gt in gt_explanation:
+            if gt.edge_imp.sum().item() != 0:
+                zero_flag = False
+
+        if zero_flag:
+            continue
+
         data = data.to(device)
         # gt_explanation = gt_explanation.to(device)
 
@@ -119,6 +136,7 @@ def explain_graph_dataset(explainer: Union[Explainer, _BaseExplainer], dataset: 
 
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
+        count += 1
     return pred_explanations, ground_truth_explanations
 
 
@@ -148,6 +166,7 @@ def explanation_accuracy(
         max_gt_auc = 0
 
         if len(gt_list) == 0:
+            print("NO VALID EXPLANATION")
             continue
 
         # pred_gxai = GraphXAIExplanation(edge_imp=pred_edge_mask)
@@ -157,9 +176,14 @@ def explanation_accuracy(
         for i, gt in enumerate(gt_list):
             try:
                 gt_edge_mask = gt.edge_imp
-                
+
                 if gt_edge_mask.sum().item() == 0:
                     continue
+
+                gt_edge_mask = gt_edge_mask.cpu().numpy()
+                if isinstance(pred_edge_mask, torch.Tensor):
+                    pred_edge_mask = pred_edge_mask.cpu().numpy()
+                # pred_edge_mask = pred_edge_mask.cpu().numpy()
 
                 edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
                 edge_mask_precision = precision_score(
@@ -183,6 +207,7 @@ def explanation_accuracy(
                     best_gt_edge_mask = gt_edge_mask
                 loop_flag = True  # loop has been executed at least once
             except Exception as e:
+                print(e)
                 continue
         if not loop_flag:
             continue
@@ -308,6 +333,7 @@ def spread_edge_wise(graph, explanation, mapping):
             # print('ERRROR', i)
             # print(edge_type[i], edge_type[i + 1])
             idx = mapping[3][counter]
+            print(idx)
             new_edge_mask[idx] += edge_mask[i]
         elif edge_type[i] == 4:
             if last_seen != 4:
@@ -323,7 +349,7 @@ def spread_edge_wise(graph, explanation, mapping):
     return new_edge_mask
 
 
-def spread_cycle_wise(graph, explanation, mapping):
+def spread_cycle_wise(graph, explanation, mapping, alpha=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
 
@@ -364,7 +390,7 @@ def spread_cycle_wise(graph, explanation, mapping):
             # print(edge_type[i], edge_type[i + 1])
             idx_list = mapping[3][counter]
             for idx in idx_list:
-                new_edge_mask[idx] += edge_mask[i]
+                new_edge_mask[idx] += (edge_mask[i] - 0.5) * alpha  # alpha is a scaling factor
         elif edge_type[i] == 4:
             if last_seen != 4:
                 counter = 0
@@ -373,7 +399,7 @@ def spread_cycle_wise(graph, explanation, mapping):
 
             idx_list = mapping[4][counter]
             for idx in idx_list:
-                new_edge_mask[idx] += edge_mask[i]
+                new_edge_mask[idx] += (edge_mask[i] - 0.5)* alpha
 
         last_seen = edge_type[i]
 
@@ -441,14 +467,37 @@ def remove_type_1_nodes(data):
     return data
 
 
-def explain_cell_complex_dataset(explainer: Union[Explainer, _BaseExplainer], dataset: ComplexDataset, num=50):
+def norm(x):
+    # x is a tensor
+    return (x - x.min()) / (x.max() - x.min())
+
+
+def explain_cell_complex_dataset(
+    explainer: Union[Explainer, _BaseExplainer], dataset: ComplexDataset, num=50
+):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
     """
     pred_explanations = []
     ground_truth_explanations = []
-    for i in tqdm(range(num), desc="Explaining Cell Complexes"):
-        data, gt_explanation, mapping = dataset[i]
+    count = 0
+    n = 0
+
+    # for i in tqdm(range(num), desc="Explaining Cell Complexes"):
+    while count < num and n < len(dataset):
+        data, gt_explanation, mapping = dataset[n]
+        n += 1
+        if len(gt_explanation) == 0:
+            continue
+
+        zero_flag = True
+        for gt in gt_explanation:
+            if gt.edge_imp.sum().item() != 0:
+                zero_flag = False
+
+        if zero_flag:
+            continue
+
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
 
@@ -460,16 +509,19 @@ def explain_cell_complex_dataset(explainer: Union[Explainer, _BaseExplainer], da
             data = remove_type_2_nodes(data)
         if args.remove_type_1_nodes:
             data = remove_type_1_nodes(data)
-
+        data = data.to("cpu")
         pred = get_graph_level_explanation(explainer, data)
-        
+
         edge_mask = None
         if args.spread_strategy == "cycle_wise":
-            edge_mask = (spread_cycle_wise(data, pred, mapping)).tanh()
+            edge_mask = norm(spread_cycle_wise(data, pred, mapping, alpha=3.0))
+            # edge_mask = (spread_cycle_wise(data, pred, mapping, alpha=1.0)).tanh()
         elif args.spread_strategy == "edge_wise":
             edge_mask = (spread_edge_wise(data, pred, mapping)).tanh()
         else:
-            raise NotImplementedError(f"Spread strategy {args.spread_strategy} is not implemented.")
+            raise NotImplementedError(
+                f"Spread strategy {args.spread_strategy} is not implemented."
+            )
 
         if args.explanation_aggregation == "topk":
             k = int(0.25 * len(edge_mask))
@@ -477,8 +529,11 @@ def explain_cell_complex_dataset(explainer: Union[Explainer, _BaseExplainer], da
             pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
         elif args.explanation_aggregation == "threshold":
             pred["edge_mask"] = (edge_mask > 0.5).float()
+
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
+        count += 1
+
     return pred_explanations, ground_truth_explanations
 
 
@@ -522,14 +577,18 @@ def explain_nodes_graphs(explainer: Explainer, data: Data, dataset: NodeDataset)
         edge_indices.append(edge_index)
     return pred_explanations, gt_explanations, edge_indices
 
+
 def remove_extra_edges(num_nodes, edge_index):
     # convert to edge list
     edge_list = edge_index.t().tolist()
     # remove edges that have nodes greater than num_nodes
-    edge_list = [edge for edge in edge_list if edge[0] < num_nodes and edge[1] < num_nodes]
+    edge_list = [
+        edge for edge in edge_list if edge[0] < num_nodes and edge[1] < num_nodes
+    ]
     # convert back to edge index
     edge_index = torch.tensor(edge_list).t().contiguous()
     return edge_index
+
 
 def explain_nodes_complex(
     explainer: Explainer, data: Data, dataset: NodeDataset, mapping
@@ -541,10 +600,12 @@ def explain_nodes_complex(
     for i in tqdm(range(len(data.test_mask)), desc="Explaining Nodes with complexes"):
         if data.test_mask[i] == 0:
             continue
-        
+
         expl = explainer(data.x, data.edge_index, index=i)
         _, edge_index, _, hard_edge_mask = k_hop_subgraph(
-            i, num_hops=2, edge_index=data.edge_index,
+            i,
+            num_hops=2,
+            edge_index=data.edge_index,
         )
         edge_index = remove_extra_edges(type_0_nodes, edge_index)
         std_edge_mask = (
@@ -570,13 +631,16 @@ def explain_nodes_complex(
         edge_indices.append(edge_index)
     return pred_explanations, gt_explanations, edge_indices
 
+
 def explain_nodes(explainer: Explainer, data: Data, dataset, mapping=None, type="g"):
     if type == "g":
         return explain_nodes_graphs(explainer, data, dataset)
     elif type == "c":
         return explain_nodes_complex(explainer, data, dataset, mapping)
     else:
-        raise NotImplementedError(f"Node explanation for type {type} is not implemented.")
+        raise NotImplementedError(
+            f"Node explanation for type {type} is not implemented."
+        )
 
 
 def save_to_graphml(data, explanation, outdir, fname, is_gt=False):
@@ -599,16 +663,19 @@ def save_to_graphml(data, explanation, outdir, fname, is_gt=False):
         (edge_list[i][0], edge_list[i][1], edge_mask[i]) for i in range(len(edge_list))
     ]
     G.add_weighted_edges_from(weighted_edges)
-    out_path = os.path.join(outdir,f"{args.current_seed}",fname)
+    out_path = os.path.join(outdir, f"{args.current_seed}", fname)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     nx.write_graphml(G, out_path)
 
-def save_node_graph_to_graphml(edge_index, explanation,  node_idx, outdir, fname, is_gt=False):
+
+def save_node_graph_to_graphml(
+    edge_index, explanation, node_idx, outdir, fname, is_gt=False
+):
     edge_list = edge_index.t().tolist()
     edge_mask = None
-    
-    # count number of nodes 
-    
+
+    # count number of nodes
+
     if is_gt:
         enc_subgraph = explanation[0].enc_subgraph
         edge_index = enc_subgraph.edge_index
@@ -628,8 +695,7 @@ def save_node_graph_to_graphml(edge_index, explanation,  node_idx, outdir, fname
         else:
             node_attr[i] = 0
     nx.set_node_attributes(G, {i: {"node_attr": node_attr[i]} for i in G.nodes})
-    out_path = os.path.join(outdir,f"{args.current_seed}",fname)
+    out_path = os.path.join(outdir, f"{args.current_seed}", fname)
     # create directory if it does not exist
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     nx.write_graphml(G, out_path)
-    

@@ -14,6 +14,6 @@ python3 main.py \
     --explanation_epochs 400 \
     --save_explanation_dir explanations \
     --num_explanations 50 \
-    --spread_strategy cycle_wise \
+    --prop_strategy direct_prop \
     --start_seed 0 \
     --end_seed 10

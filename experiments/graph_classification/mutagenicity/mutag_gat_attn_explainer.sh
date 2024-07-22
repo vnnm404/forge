@@ -14,6 +14,6 @@ python3 main.py \
     --save_explanation_dir explanations \
     --num_explanations 500 \
     --remove_type_2_nodes True \
-    --spread_strategy cycle_wise \
+    --prop_strategy direct_prop \
     --start_seed 0 \
     --end_seed 10 \

@@ -50,10 +50,16 @@ class FluorideCarbonyl(GraphDataset):
             # Sample down to keep the dataset balanced
             random.seed(seed)
             keep_inds = random.sample(zero_bin, k=1 * len(one_bin))
+            
+            # randomly permute the indices
+            indices = keep_inds + one_bin
+            random.shuffle(indices)
+            print("class 0: ", len(keep_inds))
+            print("class 1: ", len(one_bin))
 
-            self.graphs = [self.graphs[i] for i in (keep_inds + one_bin)]
-            self.explanations = [self.explanations[i] for i in (keep_inds + one_bin)]
-            self.zinc_ids = [self.zinc_ids[i] for i in (keep_inds + one_bin)]
+            self.graphs = [self.graphs[i] for i in indices]
+            self.explanations = [self.explanations[i] for i in indices]
+            self.zinc_ids = [self.zinc_ids[i] for i in indices]
 
         # self.graphs, self.explanations, self.zinc_ids = \
         #     load_graphs(data_path, os.path.join(data_path, fc_smiles_df))

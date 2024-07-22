@@ -361,14 +361,17 @@ def visualise_explanation(
 #### FOR CELL COMPLEXES ####
 
 
-def spread_edge_wise(graph, explanation, mapping):
+def hierarchical_prop(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
 
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
-
+    new_edge_mask = new_edge_mask.to(device)
     # print(num_og_edges, new_edge_mask)
+    
+    node_to_edge = {}
+    node_to_cycle = {}
 
     last_seen = -1
     counter = 0
@@ -383,7 +386,8 @@ def spread_edge_wise(graph, explanation, mapping):
                 counter += 1
 
             idx = mapping[1][counter]
-            new_edge_mask[idx] += edge_mask[i]
+            node_to_edge[idx] = [i]
+            # new_edge_mask[idx] += edge_mask[i]
         elif edge_type[i] == 2:
             if last_seen != 2:
                 counter = 0
@@ -391,7 +395,9 @@ def spread_edge_wise(graph, explanation, mapping):
                 counter += 1
 
             idx = mapping[2][counter]
-            new_edge_mask[idx] += edge_mask[i]
+            node_to_edge[idx].append(i)
+            print(len(node_to_edge[idx]))
+            # new_edge_mask[idx] += edge_mask[i]
         elif edge_type[i] == 3:
             if last_seen != 3:
                 counter = 0
@@ -401,9 +407,9 @@ def spread_edge_wise(graph, explanation, mapping):
             # print('ERRROR', i)
             # print(edge_type[i], edge_type[i + 1])
             idx = mapping[3][counter][1]
-            # print(mapping)
-            # print("IDX", idx)
-            new_edge_mask[idx] += edge_mask[i]
+            node_to_cycle[idx] = [i]
+            print(f"3 idx: {idx}, len: {len(node_to_cycle[idx])} i: {i}")
+            # new_edge_mask[idx] += edge_mask[i]
         elif edge_type[i] == 4:
             if last_seen != 4:
                 counter = 0
@@ -411,14 +417,34 @@ def spread_edge_wise(graph, explanation, mapping):
                 counter += 1
 
             idx = mapping[4][counter][1]
-            new_edge_mask[idx] += edge_mask[i]
+            node_to_cycle[idx].append(i)
+            print(f"4 idx: {idx}, len: {len(node_to_cycle[idx])} i: {i}")
+            # new_edge_mask[idx] += edge_mask[i]
 
         last_seen = edge_type[i]
-
+    
+    # create an edge to cycle mapping from the node_to_cycle and node_to_edge mappings
+    edge_to_cycle = {}
+    for node, cycle_idxs in node_to_cycle.items():
+        
+        edge_idxs = node_to_edge[node]
+        print(f"node: {node}, len_edge: {len(edge_idxs)}, len_cycle: {len(cycle_idxs)}")
+        for i in range(len(cycle_idxs)):
+            edge_to_cycle[edge_idxs[i]] = cycle_idxs[i]
+    
+    # transfer importance from cycle idxs to edge idx in the original mask
+    for edge_idx, cycle_idx in edge_to_cycle.items():
+        edge_mask[edge_idx] += (edge_mask[cycle_idx] - 0.5) * alpha_c
+    
+    # transfer importance from edge idxs to edge idx in the new mask
+    for node, edge_idxs in node_to_edge.items():
+        for edge_idx in edge_idxs:
+            new_edge_mask[node] += (edge_mask[edge_idx] - 0.5) * alpha_e
+        
     return new_edge_mask
 
 
-def spread_cycle_wise(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
+def direct_prop(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
 
@@ -458,20 +484,20 @@ def spread_cycle_wise(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
 
             # print('ERRROR', i)
             # print(edge_type[i], edge_type[i + 1])
-            idx_list = mapping[3][counter][0]
-            for idx in idx_list:
-                new_edge_mask[idx] += (
-                    edge_mask[i] - 0.5
-                ) * alpha_c  # alpha is a scaling factor
+            idx = mapping[3][counter][1]
+            new_edge_mask[idx] += (
+                edge_mask[i] - 0.5
+            ) * alpha_c  # alpha is a scaling factor
         elif edge_type[i] == 4:
             if last_seen != 4:
                 counter = 0
             else:
                 counter += 1
 
-            idx_list = mapping[4][counter][0]
-            for idx in idx_list:
-                new_edge_mask[idx] += (edge_mask[i] - 0.5) * alpha_c
+            idx = mapping[4][counter][1]
+            new_edge_mask[idx] += (
+                edge_mask[i] - 0.5
+            ) * alpha_c
 
         last_seen = edge_type[i]
 
@@ -589,17 +615,18 @@ def explain_cell_complex_dataset(
 
         edge_mask = None
         # print("SPREAD")
-        if args.spread_strategy == "cycle_wise":
+        if args.prop_strategy == "direct_prop":
             edge_mask = norm(
-                spread_cycle_wise(data, pred, mapping, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+                direct_prop(data, pred, mapping, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
             )
-            # edge_mask = (spread_cycle_wise(data, pred, mapping, alpha=1.0)).tanh()
-        elif args.spread_strategy == "edge_wise":
+        elif args.prop_strategy == "hierarchical_prop":
             # print("EDGE")
-            edge_mask = (spread_edge_wise(data, pred, mapping)).tanh()
+            edge_mask = norm(
+                hierarchical_prop(data, pred, mapping, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+            )
         else:
             raise NotImplementedError(
-                f"Spread strategy {args.spread_strategy} is not implemented."
+                f"Propagation strategy {args.prop_strategy} is not implemented."
             )
 
         if args.explanation_aggregation == "topk":
@@ -608,14 +635,18 @@ def explain_cell_complex_dataset(
             pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
         elif args.explanation_aggregation == "threshold":
             pred["edge_mask"] = (edge_mask >= 0.5).float()
-        faithfulness = explanation_fairness(graph_explainer, dataset.get_underlying_graph(n).to(device), pred)
-        f.append(faithfulness)
+        if graph_explainer is not None:
+            faithfulness = explanation_fairness(graph_explainer, dataset.get_underlying_graph(n).to(device), pred)
+            f.append(faithfulness)
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
         count += 1
         n += 1
-    f = sum(f) / len(f)
-    f = f.item()
+    if f == []:
+        f = 0
+    else:
+        f = sum(f) / len(f)
+        f = f.item()
     return pred_explanations, ground_truth_explanations, f
 
 
@@ -691,7 +722,7 @@ def explain_nodes_complex(
         )
         edge_index = remove_extra_edges(type_0_nodes, edge_index)
         std_edge_mask = (
-            spread_cycle_wise(remove_type_2_nodes(data), expl, mapping) / 3.5
+            direct_prop(remove_type_2_nodes(data), expl, mapping) / 3.5
         ).tanh()
 
         pred_edge_mask = []

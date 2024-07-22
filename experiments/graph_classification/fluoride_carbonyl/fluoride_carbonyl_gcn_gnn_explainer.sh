@@ -13,6 +13,8 @@ python3 main.py \
     --explanation_epochs 100 \
     --save_explanation_dir explanations/ \
     --num_explanations 100 \
-    --spread_strategy cycle_wise \
+    --prop_strategy hierarchical_prop \
+    --alpha_c 1.0 \
+    --alpha_e 1.0 \
     --start_seed 0 \
     --end_seed 1

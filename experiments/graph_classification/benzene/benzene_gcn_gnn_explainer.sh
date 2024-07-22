@@ -13,10 +13,10 @@ python3 main.py \
     --explanation_epochs 200 \
     --save_explanation_dir explanations \
     --num_explanations 100 \
-    --spread_strategy cycle_wise\
-    --alpha_c 1.5 \
-    --alpha_e 0.5 \
+    --prop_strategy direct_prop \
+    --alpha_c 1.0 \
+    --alpha_e 1.0 \
     --start_seed 0 \
     --end_seed 1
-    # --spread_strategy cycle_wise
+    # --prop_strategy direct_prop
     # --remove_type_1_nodes \

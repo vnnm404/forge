@@ -162,11 +162,11 @@ def load_args():
         help="Whether to remove type 1 nodes (edges) from the dataset",
     )
     parser.add_argument(
-        "--spread_strategy",
+        "--prop_strategy",
         type=str,
-        default="cycle_wise",
-        help="The strategy for spreading the explanation",
-        choices=["cycle_wise", "edge_wise"],
+        default="direct_prop",
+        help="The strategy for propagating the higher order explanations",
+        choices=["direct_prop", "hierarchical_prop"],
     )
     parser.add_argument(
         "--alpha_c",

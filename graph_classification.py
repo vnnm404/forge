@@ -42,6 +42,17 @@ def load_complex_data(seed):
     print("Loading dataset...")
     complex_dataset = load_dataset_as_complex(args.dataset, seed=seed)
     train_loader, test_loader = get_data_loaders(complex_dataset, batch_size=64)
+    # get number of samples in each class for train and test loader
+    print("Train loader class distribution:")
+    for i in range(2):
+        print(
+            f"Class {i}: {len([data for data in train_loader.dataset if data.y == i])}"
+        )
+    print("Test loader class distribution:")
+    for i in range(2):
+        print(
+            f"Class {i}: {len([data for data in test_loader.dataset if data.y == i])}"
+        )
     print("Dataset loaded.")
     return complex_dataset, train_loader, test_loader
 
@@ -85,19 +96,20 @@ def setup_model(train_loader, test_loader, type="graphs"):
     return model
 
 
-def explain(model, dataset):
+def explain(model, dataset, graph_explainer=None):
     explainer = initialise_explainer(
         model=model,
         explanation_algorithm_name=args.explanation_algorithm,
         explanation_epochs=args.explanation_epochs,
         explanation_lr=args.explanation_lr,
     )
-    pred_explanations, ground_truth_explanations = explain_dataset(
-        explainer, dataset, num=args.num_explanations
+    pred_explanations, ground_truth_explanations, faithfulness = explain_dataset(
+        explainer, dataset, num=args.num_explanations, graph_explainer=graph_explainer
     )
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
+    metrics["faithfulness"] = faithfulness
     print(metrics)
-    return pred_explanations, ground_truth_explanations, metrics
+    return pred_explanations, ground_truth_explanations, metrics, explainer
 
 
 def save_metrics(metrics, exp_name, type):
@@ -133,78 +145,81 @@ def save_graphml(dataset, explanation, type, is_gt=False):
 def graph_classification():
     ########### GRAPH ############################
     # print("Running graph setup")
-    # graph_metrics = {}
-    # for seed in tqdm(range(args.start_seed, args.end_seed), desc="Graph Setup Seed: "):
-    #     args.current_seed = seed
+    graph_metrics = {}
+    explainers = {}
+    for seed in tqdm(range(args.start_seed, args.end_seed), desc="Graph Setup Seed: "):
+        args.current_seed = seed
 
-    #     dataset, train_loader, test_loader = load_graph_data(seed=seed)
+        dataset, train_loader, test_loader = load_graph_data(seed=seed)
 
-    #     graph_model = setup_model(
-    #         train_loader=train_loader, test_loader=test_loader, type="graphs"
-    #     )
-    #     graph_pred_explanations, ground_truth_explanations, metrics = explain(
-    #         model=graph_model,
-    #         dataset=dataset,
-    #     )
+        graph_model = setup_model(
+            train_loader=train_loader, test_loader=test_loader, type="graphs"
+        )
+        graph_pred_explanations, ground_truth_explanations, metrics, explainer = explain(
+            model=graph_model,
+            dataset=dataset,
+        )
+        
+        explainers[seed] = explainer
 
-    #     if args.visualise:
-    #         visualise_explanation(
-    #             graph_pred_explanations[1], ground_truth_explanations[1]
-    #         )
+        if args.visualise:
+            visualise_explanation(
+                graph_pred_explanations[1], ground_truth_explanations[1]
+            )
 
-    #     graph_metrics[seed] = metrics
+        graph_metrics[seed] = metrics
 
-    #     if args.save_explanation_graphml:
-    #         save_graphml(dataset, graph_pred_explanations, "graph")
+        if args.save_explanation_graphml:
+            save_graphml(dataset, graph_pred_explanations, "graph")
 
-    #     if args.test_graph_train_complex_dataset:
-    #         print(
-    #             "Testing explainer with model trained on graph, and providing complex dataset."
-    #         )
-    #         complex_dataset, _, _ = load_complex_data(seed=seed)
-    #         explain(
-    #             model=graph_model,
-    #             dataset=dataset,
-    #         )
+        if args.test_graph_train_complex_dataset:
+            print(
+                "Testing explainer with model trained on graph, and providing complex dataset."
+            )
+            complex_dataset, _, _ = load_complex_data(seed=seed)
+            explain(
+                model=graph_model,
+                dataset=dataset,
+            )
 
-    #     if args.visualise:
-    #         visualise_explanation(
-    #             graph_pred_explanations[1], ground_truth_explanations[1]
-    #         )
+        if args.visualise:
+            visualise_explanation(
+                graph_pred_explanations[1], ground_truth_explanations[1]
+            )
 
-    #     if args.save_explanation_graphml:
-    #         save_graphml(dataset, graph_pred_explanations, "graph")
+        if args.save_explanation_graphml:
+            save_graphml(dataset, graph_pred_explanations, "graph")
 
-    # # get best seed based on jaccard score
-    # best_seed = max(graph_metrics, key=graph_metrics.get("jaccard"))
-    # best_metrics = graph_metrics[best_seed]
-    # print(f"Best seed for graph explanations: {best_seed}")
-    # print(f"Best metrics for graph explanations: ")
-    # pprint(best_metrics)
+    # get best seed based on jaccard score
+    best_seed = max(graph_metrics, key=graph_metrics.get("jaccard"))
+    best_metrics = graph_metrics[best_seed]
+    print(f"Best seed for graph explanations: {best_seed}")
+    print(f"Best metrics for graph explanations: ")
+    pprint(best_metrics)
 
-    # if args.save_explanation_dir:
-    #     # sort metrics by jaccard score
-    #     graph_metrics = dict(
-    #         sorted(graph_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
-    #     )
+    if args.save_explanation_dir:
+        # sort metrics by jaccard score
+        graph_metrics = dict(
+            sorted(graph_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
+        )
 
-    #     # average metrics
-    #     avg_metrics = {}
-    #     for key in graph_metrics[seed].keys():
-    #         avg_metrics[key] = sum([x[key] for x in graph_metrics.values()]) / len(
-    #             graph_metrics
-    #         )
+        # average metrics
+        avg_metrics = {}
+        for key in graph_metrics[seed].keys():
+            avg_metrics[key] = sum([x[key] for x in graph_metrics.values()]) / len(
+                graph_metrics
+            )
 
-    #     graph_metrics["average"] = avg_metrics
+        graph_metrics["average"] = avg_metrics
 
-    #     # std dev metrics
-    #     std_metrics = {}
-    #     for key in graph_metrics[seed].keys():
-    #         std_metrics[key] = np.std([x[key] for x in graph_metrics.values()])
+        # std dev metrics
+        std_metrics = {}
+        for key in graph_metrics[seed].keys():
+            std_metrics[key] = np.std([x[key] for x in graph_metrics.values()])
 
-    #     graph_metrics["std_dev"] = std_metrics
+        graph_metrics["std_dev"] = std_metrics
 
-    #     save_metrics(graph_metrics, args.exp_name, "graph")
+        save_metrics(graph_metrics, args.exp_name, "graph")
 
     ######### CELL COMPLEX ##########################
     complex_metrics = {}
@@ -217,29 +232,9 @@ def graph_classification():
         model = setup_model(
             train_loader=train_loader, test_loader=test_loader, type="complexes"
         )
-        model = model.to("cpu")
-        complex_pred_explanations, _, metrics = explain(
-            model=model, dataset=complex_dataset
+        complex_pred_explanations, _, metrics, _ = explain(
+            model=model, dataset=complex_dataset, graph_explainer=explainers[seed]
         )
-
-        # Determine the number of subplots needed
-        num_arrays = 10
-
-        # Create a figure with a set of subplots
-        fig, axes = plt.subplots(nrows=num_arrays, ncols=1, figsize=(8, num_arrays * 4))
-
-        # Plot each array on a separate subplot
-        for i, array in enumerate(
-            [c["edge_mask"] for c in complex_pred_explanations][:10]
-        ):
-            ax = axes[i] if num_arrays > 1 else axes
-            cax = ax.matshow(array.reshape(-1, 1), aspect="auto", cmap="viridis")
-            fig.colorbar(cax, ax=ax)
-            ax.set_title(f"Array {i+1}")
-
-        # Adjust layout and display the plot
-        plt.tight_layout()
-        plt.savefig(f"edge_mask_{seed}.png")
 
         # if args.test_complex_train_graph_dataset:
         #     print(

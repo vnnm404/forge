@@ -1,5 +1,6 @@
 from typing import List, Optional, Union
 import torch
+import torch.nn.functional as F
 from torch_geometric.data import Data
 from torch_geometric.explain import (
     Explainer,
@@ -8,6 +9,7 @@ from torch_geometric.explain import (
     CaptumExplainer,
     AttentionExplainer,
     GraphMaskExplainer,
+    unfaithfulness,
 )
 from tqdm import tqdm
 from torch_geometric.explain import Explanation as PyGExplanation
@@ -58,7 +60,37 @@ def initialise_explainer(
     node_mask_type=None,
     edge_mask_type="object",
 ):
-    if explanation_algorithm_name != "SubgraphX":
+    if explanation_algorithm_name == "AttentionExplainer":
+        return Explainer(
+            model=model,
+            explanation_type=("model"),
+            algorithm=get_explanation_algorithm(explanation_algorithm_name)().to(
+                device
+            ),
+            node_mask_type=node_mask_type,
+            edge_mask_type=edge_mask_type,
+            model_config=dict(
+                mode=task,
+                task_level=args.task_level,
+                return_type="probs",
+            ),
+        )
+    elif explanation_algorithm_name == "GraphMaskExplainer":
+        return Explainer(
+            model=model,
+            explanation_type=("model"),
+            algorithm=get_explanation_algorithm(explanation_algorithm_name)(
+                epochs=explanation_epochs, lr=explanation_lr, num_layers=2, log=False
+            ).to(device),
+            node_mask_type=node_mask_type,
+            edge_mask_type=edge_mask_type,
+            model_config=dict(
+                mode=task,
+                task_level=args.task_level,
+                return_type="probs",
+            ),
+        )
+    elif explanation_algorithm_name != "SubgraphX":
         return Explainer(
             model=model,
             explanation_type=("model"),
@@ -85,13 +117,33 @@ def get_graph_level_explanation(
 ):
     pred = None
     if args.explanation_algorithm != "SubgraphX":
-        pred = explainer(data.x, edge_index=data.edge_index, batch=data.batch)
+        pred = explainer(data.x, edge_index=data.edge_index)
     elif args.explanation_algorithm == "SubgraphX":
         pred = explainer.get_explanation_graph(
             data.x, data.edge_index, forward_kwargs={"batch": data.batch}
         )
         pred = {"edge_mask": pred.edge_imp}
     return pred
+
+def kl_divergence_distributions(P, Q):
+    # Convert to numpy arrays for element-wise operations
+    P = P.cpu().detach().numpy()
+    Q = Q.cpu().detach().numpy()
+    epsilon = 1e-10
+    # Add epsilon to avoid log(0) and division by zero issues
+    P = np.clip(P, epsilon, 1)
+    Q = np.clip(Q, epsilon, 1)
+    
+    # Ensure P and Q are valid probability distributions
+    if not np.all(P >= 0) or not np.all(Q >= 0):
+        raise ValueError("All elements in P and Q should be non-negative")
+    if not np.isclose(np.sum(P), 1) or not np.isclose(np.sum(Q), 1):
+        raise ValueError("P and Q should sum to 1")
+    
+    # Compute the KL divergence
+    kl_div = np.sum(P * np.log(P / Q))
+    
+    return torch.tensor(kl_div)
 
 
 def explain_graph_dataset(
@@ -104,6 +156,7 @@ def explain_graph_dataset(
     ground_truth_explanations = []
     count = 0
     n = 0
+    f = []
     # for i in tqdm(range(num), desc="Explaining Graphs"):
     while count < num and n < len(dataset):
         data, gt_explanation = dataset[n]
@@ -132,17 +185,32 @@ def explain_graph_dataset(
                 pred["edge_mask"] > pred["edge_mask"].topk(k).values.min()
             ).float()
         elif args.explanation_aggregation == "threshold":
-            pred["edge_mask"] = pred["edge_mask"] > 0.5
-
+            pred["edge_mask"] = pred["edge_mask"] >= 0.5
+        faithfulness = explanation_fairness(explainer, data, pred)
+        f.append(faithfulness)
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
         count += 1
-    return pred_explanations, ground_truth_explanations
+    # take mean of faithfulness and get the number out of the tensor
+    f = sum(f) / len(f)
+    f = f.item()
+    print(f)
+    return pred_explanations, ground_truth_explanations, f
 
+def explanation_fairness(graph_explainer: Union[Explainer, _BaseExplainer], data: Data, predicted_explanation: PyGExplanation):
+    predicted_explanation["edge_mask"] = predicted_explanation["edge_mask"].float()
+    y = graph_explainer.get_prediction(data.x, data.edge_index)
+    y_masked = graph_explainer.get_masked_prediction(x = data.x, edge_index = data.edge_index, edge_mask = predicted_explanation["edge_mask"])
+    y = torch.cat([1 - y, y])
+    y_masked = torch.cat([1 - y_masked, y_masked])
+    
+    kl_div = kl_divergence_distributions(y, y_masked)
+    return torch.exp(-kl_div)
+    
 
 def explanation_accuracy(
     ground_truth_explanation: List[GraphXAIExplanation],
-    predicted_explanation: PyGExplanation,
+    predicted_explanation: List[PyGExplanation],
 ):
     """
     Computes the accuracy of the predicted explanation. Only works with thresholded explanations for now.
@@ -238,7 +306,7 @@ def explanation_accuracy(
         "jaccard": jaccard,
         "auc": auc,
     }
-
+    
 
 def visualise_explanation(
     pred_explanation: PyGExplanation,
@@ -350,12 +418,13 @@ def spread_edge_wise(graph, explanation, mapping):
     return new_edge_mask
 
 
-def spread_cycle_wise(graph, explanation, mapping, alpha=1.0):
+def spread_cycle_wise(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
 
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
+    new_edge_mask = new_edge_mask.to(device)
 
     # print(num_og_edges, new_edge_mask)
 
@@ -372,7 +441,7 @@ def spread_cycle_wise(graph, explanation, mapping, alpha=1.0):
                 counter += 1
 
             idx = mapping[1][counter]
-            new_edge_mask[idx] += edge_mask[i]
+            new_edge_mask[idx] += (edge_mask[i] - 0.5) * alpha_e
         elif edge_type[i] == 2:
             if last_seen != 2:
                 counter = 0
@@ -380,7 +449,7 @@ def spread_cycle_wise(graph, explanation, mapping, alpha=1.0):
                 counter += 1
 
             idx = mapping[2][counter]
-            new_edge_mask[idx] += edge_mask[i]
+            new_edge_mask[idx] += (edge_mask[i] - 0.5) * alpha_e
         elif edge_type[i] == 3:
             if last_seen != 3:
                 counter = 0
@@ -391,7 +460,9 @@ def spread_cycle_wise(graph, explanation, mapping, alpha=1.0):
             # print(edge_type[i], edge_type[i + 1])
             idx_list = mapping[3][counter][0]
             for idx in idx_list:
-                new_edge_mask[idx] += (edge_mask[i] - 0.5) * alpha  # alpha is a scaling factor
+                new_edge_mask[idx] += (
+                    edge_mask[i] - 0.5
+                ) * alpha_c  # alpha is a scaling factor
         elif edge_type[i] == 4:
             if last_seen != 4:
                 counter = 0
@@ -400,7 +471,7 @@ def spread_cycle_wise(graph, explanation, mapping, alpha=1.0):
 
             idx_list = mapping[4][counter][0]
             for idx in idx_list:
-                new_edge_mask[idx] += (edge_mask[i] - 0.5)* alpha
+                new_edge_mask[idx] += (edge_mask[i] - 0.5) * alpha_c
 
         last_seen = edge_type[i]
 
@@ -474,7 +545,7 @@ def norm(x):
 
 
 def explain_cell_complex_dataset(
-    explainer: Union[Explainer, _BaseExplainer], dataset: ComplexDataset, num=50
+    explainer: Union[Explainer, _BaseExplainer], dataset: ComplexDataset, num=50, graph_explainer=None
 ):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
@@ -484,12 +555,13 @@ def explain_cell_complex_dataset(
     ground_truth_explanations = []
     count = 0
     n = 0
-
+    f = []
     # for i in tqdm(range(num), desc="Explaining Cell Complexes"):
     while count < num and n < len(dataset):
         data, gt_explanation, mapping = dataset[n]
-        n += 1
+        
         if len(gt_explanation) == 0:
+            n += 1
             continue
 
         zero_flag = True
@@ -498,6 +570,7 @@ def explain_cell_complex_dataset(
                 zero_flag = False
 
         if zero_flag:
+            n += 1
             continue
 
         assert data.x is not None, "Data must have node features."
@@ -511,14 +584,15 @@ def explain_cell_complex_dataset(
             data = remove_type_2_nodes(data)
         if args.remove_type_1_nodes:
             data = remove_type_1_nodes(data)
-        data = data.to("cpu")
+        data = data.to(device)
         pred = get_graph_level_explanation(explainer, data)
 
         edge_mask = None
         # print("SPREAD")
         if args.spread_strategy == "cycle_wise":
-            # print("CYCLE")
-            edge_mask = norm(spread_cycle_wise(data, pred, mapping, alpha=3.0))
+            edge_mask = norm(
+                spread_cycle_wise(data, pred, mapping, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+            )
             # edge_mask = (spread_cycle_wise(data, pred, mapping, alpha=1.0)).tanh()
         elif args.spread_strategy == "edge_wise":
             # print("EDGE")
@@ -533,20 +607,23 @@ def explain_cell_complex_dataset(
             # take top k edges as 1 and rest as 0
             pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
         elif args.explanation_aggregation == "threshold":
-            pred["edge_mask"] = (edge_mask > 0.5).float()
-
+            pred["edge_mask"] = (edge_mask >= 0.5).float()
+        faithfulness = explanation_fairness(graph_explainer, dataset.get_underlying_graph(n).to(device), pred)
+        f.append(faithfulness)
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
         count += 1
-
-    return pred_explanations, ground_truth_explanations
+        n += 1
+    f = sum(f) / len(f)
+    f = f.item()
+    return pred_explanations, ground_truth_explanations, f
 
 
 def explain_dataset(
-    explainer: Explainer, dataset: Union[GraphDataset, ComplexDataset], num=50
+    explainer: Explainer, dataset: Union[GraphDataset, ComplexDataset], num=50, graph_explainer=None
 ):
     if isinstance(dataset, ComplexDataset):
-        return explain_cell_complex_dataset(explainer, dataset, num)
+        return explain_cell_complex_dataset(explainer, dataset, num, graph_explainer=graph_explainer)
     elif isinstance(dataset, GraphDataset):
         return explain_graph_dataset(explainer, dataset, num)
 

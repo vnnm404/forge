@@ -5,15 +5,14 @@ python3 main.py \
     --dataset FluorideCarbonyl \
     --model GCN \
     --in_dim 14 \
-    --hidden_dim 32 \
+    --hidden_dim 64 \
     --out_dim 1 \
     --explanation_algorithm GraphMaskExplainer \
     --graph_epochs 50 \
-    --complex_epochs 30 \
+    --complex_epochs 50 \
     --explanation_epochs 100 \
     --save_explanation_dir explanations/ \
-    --num_explanations 1125 \
-    --remove_type_2_nodes True \
-    --spread_strategy edge_wise \
+    --num_explanations 100 \
+    --spread_strategy cycle_wise \
     --start_seed 0 \
     --end_seed 10

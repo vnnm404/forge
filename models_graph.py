@@ -22,13 +22,13 @@ class GCN(torch.nn.Module):
         self.conv2 = GCNConv(hidden_dim, hidden_dim)
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
-    def forward(self, x, edge_index, batch):
+    def forward(self, x, edge_index, batch=None):
         x = self.conv1(x, edge_index)
         x = F.relu(x)
         x = F.dropout(x, training=self.training)
         x = self.conv2(x, edge_index)
-        x = F.dropout(x, training=self.training)
         x = F.relu(x)
+        x = F.dropout(x, training=self.training)
 
         x = global_mean_pool(x, batch)
         x = self.lin(x)
@@ -45,12 +45,13 @@ class GAT(torch.nn.Module):
         self.conv2 = GATConv(hidden_dim, hidden_dim)
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
-    def forward(self, x, edge_index, batch):
+    def forward(self, x, edge_index, batch=None):
         x = self.conv1(x, edge_index)
         x = F.relu(x)
-        # x = F.dropout(x, training=self.training)
+        x = F.dropout(x, training=self.training)
         x = self.conv2(x, edge_index)
         x = F.relu(x)
+        x = F.dropout(x, training=self.training)
 
         x = global_mean_pool(x, batch)
         x = self.lin(x)

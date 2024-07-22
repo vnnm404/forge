@@ -295,14 +295,13 @@ class NodeDataset:
 
 
 class GraphDataset:
-    def __init__(self, name, split_sizes=(0.7, 0.2, 0.1), seed=None, device=None):
+    def __init__(self, name, split_sizes=(0.8, 0.2, 0), seed=None, device=None):
 
         self.name = name
 
         self.seed = seed
         self.device = device
         # explanation_list - list of explanations for each graph
-
         if split_sizes[1] > 0:
             self.train_index, self.test_index = train_test_split(
                 torch.arange(start=0, end=len(self.graphs)),
@@ -319,7 +318,7 @@ class GraphDataset:
                 self.test_index,
                 test_size=split_sizes[2] / (split_sizes[1] + split_sizes[2]),
                 random_state=self.seed,
-                shuffle=False,
+                shuffle=True,
             )
 
         else:

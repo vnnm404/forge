@@ -184,6 +184,9 @@ class ComplexDataset(Dataset):
         # hg = in_house_to_homogeneous(hg)
         # print('HOMO', hg)
         return (hg, gt_explanation, mapping)
+    
+    def get_underlying_graph(self, idx):
+        return self.dataset[idx][0]
 
 
 def lift_dataset(dataset: GraphDataset) -> ComplexDataset:

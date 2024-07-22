@@ -169,6 +169,18 @@ def load_args():
         choices=["cycle_wise", "edge_wise"],
     )
     parser.add_argument(
+        "--alpha_c",
+        type=float,
+        default=0.5,
+        help="The weight for the 2-complexes",
+    )
+    parser.add_argument(
+        "--alpha_e",
+        type=float,
+        default=0.5,
+        help="The weight for the 1-complexes",
+    )
+    parser.add_argument(
         "--start_seed",
         type=int,
         default=0,

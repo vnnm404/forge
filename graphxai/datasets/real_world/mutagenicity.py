@@ -1,3 +1,4 @@
+import random
 import torch
 import itertools
 import numpy as np
@@ -78,10 +79,11 @@ class Mutagenicity(GraphDataset):
         root: str,
         use_fixed_split: bool = True,
         generate: bool = True,
-        split_sizes=(0.7, 0.2, 0.1),
+        split_sizes=(0.8, 0.2, 0),
         seed=None,
         test_debug=False,
         device=None,
+        downsample=True
     ):
 
         self.device = device
@@ -102,6 +104,32 @@ class Mutagenicity(GraphDataset):
 
         # Filter based on label-explanation validity:
         self.__filter_dataset()
+        
+        # Downsample because of extreme imbalance:
+        yvals = [self.graphs[i].y for i in range(len(self.graphs))]
+
+        zero_bin = []
+        one_bin = []
+
+        if downsample:
+            for i in range(len(self.graphs)):
+                if self.graphs[i].y == 0:
+                    zero_bin.append(i)
+                else:
+                    one_bin.append(i)
+
+            # Sample down to keep the dataset balanced
+            random.seed(seed)
+            keep_inds = random.sample(zero_bin, k=1 * len(one_bin))
+            
+            # randomly permute the indices
+            indices = keep_inds + one_bin
+            random.shuffle(indices)
+            print("class 0: ", len(keep_inds))
+            print("class 1: ", len(one_bin))
+
+            self.graphs = [self.graphs[i] for i in (indices)]
+            self.explanations = [self.explanations[i] for i in (indices)]
 
         super().__init__(
             name="Mutagenicity", seed=seed, split_sizes=split_sizes, device=device

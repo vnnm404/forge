@@ -157,7 +157,7 @@ def graph_to_complex(g):
         np.array(edge_node_to_cycle_node), dtype=torch.long
     ).t()
     print(hg)
-    return hg, mapper
+    return hg
 
 class ComplexDataset(Dataset):
     def __init__(self, dataset):
@@ -167,13 +167,13 @@ class ComplexDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        hg, mapping = graph_to_complex(self.dataset[idx][0])
+        hg = graph_to_complex(self.dataset[idx][0])
         # print(hg)
         gt_explanation = self.dataset[idx][1]
         hg = hg.to_homogeneous()
         # hg = in_house_to_homogeneous(hg)
         # print('HOMO', hg)
-        return (hg, gt_explanation, mapping)
+        return (hg, gt_explanation)
     
     def get_underlying_graph(self, idx):
         return self.dataset[idx][0]

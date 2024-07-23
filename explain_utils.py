@@ -580,7 +580,7 @@ def explain_cell_complex_dataset(
     f = []
     # for i in tqdm(range(num), desc="Explaining Cell Complexes"):
     while count < num and n < len(dataset):
-        data, gt_explanation, mapping = dataset[n]
+        data, gt_explanation = dataset[n]
     
         
         if len(gt_explanation) == 0:
@@ -602,11 +602,6 @@ def explain_cell_complex_dataset(
         # print(data)
         # print(data.node_type)
         # print(mapping)
-
-        if args.remove_type_2_nodes:
-            data = remove_type_2_nodes(data)
-        if args.remove_type_1_nodes:
-            data = remove_type_1_nodes(data)
         data = data.to(device)
         pred = get_graph_level_explanation(explainer, data)
         
@@ -614,19 +609,17 @@ def explain_cell_complex_dataset(
         # print("SPREAD")
         if args.prop_strategy == "direct_prop":
             edge_mask = norm(
-                direct_prop(data, pred, mapping, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+                direct_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
             )
         elif args.prop_strategy == "hierarchical_prop":
             # print("EDGE")
             edge_mask = norm(
-                hierarchical_prop(data, pred, mapping, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+                hierarchical_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
             )
         else:
             raise NotImplementedError(
                 f"Propagation strategy {args.prop_strategy} is not implemented."
             )
-        
-        exit()
 
         if args.explanation_aggregation == "topk":
             k = int(0.25 * len(edge_mask))

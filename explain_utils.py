@@ -392,7 +392,6 @@ def create_edge_mapping(graph):
             mi = min(u, v)
             ma = max(u, v)
             u, v = mi, ma
-            print(f"Edge {i} maps to {u, v}")
             connections_0_1 = query_edges(u)
             for conn in connections_0_1:
                 conn_1_2_to_conn_0_1.append((cells_to_connections[u, v], cells_to_connections[conn]))
@@ -404,7 +403,6 @@ def create_edge_mapping(graph):
             edge_idx = max(u, v)
             
             connections_0_1 = query_edges(edge_idx)
-            print(f"edge node {u} maps to {connections_0_1}")
             x, y = connections_0_1[0][0], connections_0_1[1][0]
             edge_0_0 = (min(x, y), max(x, y))
 
@@ -580,7 +578,7 @@ def explain_cell_complex_dataset(
     f = []
     # for i in tqdm(range(num), desc="Explaining Cell Complexes"):
     while count < num and n < len(dataset):
-        data, gt_explanation = dataset[n]
+        data, gt_explanation, _ = dataset[n]
     
         
         if len(gt_explanation) == 0:

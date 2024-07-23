@@ -504,7 +504,7 @@ def hierarchical_prop(graph, explanation, alpha_c=1.0, alpha_e=1.0):
     
     return new_edge_mask
 
-def direct_prop(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
+def direct_prop(graph, explanation, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
 
@@ -531,67 +531,35 @@ def direct_prop(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
     return new_edge_mask
     
 
+def one_skeleton_prop(graph, explanation, alpha_e=1.0):
+    edge_mask = explanation["edge_mask"]
+    edge_type = graph.edge_type
 
-def remove_type_2_nodes(data):
-    """
-    Removes nodes of type '2' which are assumed to be at the end of the node list.
-    All edges connected to these nodes are also removed.
+    num_og_edges = (edge_type == 0).sum().item()
+    new_edge_mask = torch.zeros(num_og_edges)
+    new_edge_mask = new_edge_mask.to(device)
+    mappings = create_edge_mapping(graph)
+    edge_node_to_edge = mappings['edge_node_to_edge']
+        
+    for edge_pair in edge_node_to_edge:
+        edge_0_1 = edge_pair[0]
+        edge_0_0 = edge_pair[1]
+        edge_mask[edge_0_0] += (edge_mask[edge_0_1] - 0.5) * alpha_e
+    
+    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
+    
+    return new_edge_mask
 
-    Parameters:
-    - data (Data): The input graph data object.
+def zero_skeleton_prop(graph, explanation):
+    edge_mask = explanation["edge_mask"]
+    edge_type = graph.edge_type
 
-    Returns:
-    - Data: The updated graph data object with type '2' nodes and associated edges removed.
-    """
-    if 2 not in data.node_type:
-        return data
-
-    # Determine the cutoff index where nodes of type '2' start
-    # Since type '2' nodes are at the end, find the first occurrence of '2' in the node_type array
-    cutoff_index = (data.node_type == 2).nonzero(as_tuple=True)[0][0]
-
-    # Update node features and types by excluding type '2' nodes
-    data.x = data.x[:cutoff_index]
-    data.node_type = data.node_type[:cutoff_index]
-
-    # Create a mask for edges to keep only those that do not connect to type '2' nodes
-    edge_mask = data.edge_index[0] < cutoff_index
-    edge_mask &= data.edge_index[1] < cutoff_index
-
-    # Apply the mask to edge_index and edge_type
-    data.edge_index = data.edge_index[:, edge_mask]
-    data.edge_type = data.edge_type[edge_mask]
-
-    return data
-
-
-def remove_type_1_nodes(data):
-    """
-    Removes nodes of type '1' which are assumed to be at the end of the node list.
-    All edges connected to these nodes are also removed.
-
-    Parameters:
-    - data (Data): The input graph data object.
-
-    Returns:
-    - Data: The updated graph data object with type '1' nodes and associated edges removed.
-    """
-    if 1 not in data.node_type:
-        return data
-
-    cutoff_index = (data.node_type == 1).nonzero(as_tuple=True)[0][0]
-
-    data.x = data.x[:cutoff_index]
-    data.node_type = data.node_type[:cutoff_index]
-
-    edge_mask = data.edge_index[0] < cutoff_index
-    edge_mask &= data.edge_index[1] < cutoff_index
-
-    data.edge_index = data.edge_index[:, edge_mask]
-    data.edge_type = data.edge_type[edge_mask]
-
-    return data
-
+    num_og_edges = (edge_type == 0).sum().item()
+    new_edge_mask = torch.zeros(num_og_edges)
+    new_edge_mask = new_edge_mask.to(device)
+    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
+    
+    return new_edge_mask
 
 def norm(x):
     # x is a tensor

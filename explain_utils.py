@@ -714,7 +714,7 @@ def explain_nodes_complex(
         )
         edge_index = remove_extra_edges(type_0_nodes, edge_index)
         std_edge_mask = (
-            direct_prop(remove_type_2_nodes(data), expl, mapping) / 3.5
+            direct_prop(data, expl, mapping) / 3.5
         ).tanh()
 
         pred_edge_mask = []

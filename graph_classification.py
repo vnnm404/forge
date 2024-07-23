@@ -42,18 +42,6 @@ def load_complex_data(seed):
     print("Loading dataset...")
     complex_dataset = load_dataset_as_complex(args.dataset, seed=seed)
     train_loader, test_loader = get_data_loaders(complex_dataset, batch_size=64)
-    # get number of samples in each class for train and test loader
-    print("Train loader class distribution:")
-    for i in range(2):
-        print(
-            f"Class {i}: {len([data for data in train_loader.dataset if data.y == i])}"
-        )
-    print("Test loader class distribution:")
-    for i in range(2):
-        print(
-            f"Class {i}: {len([data for data in test_loader.dataset if data.y == i])}"
-        )
-    print("Dataset loaded.")
     return complex_dataset, train_loader, test_loader
 
 

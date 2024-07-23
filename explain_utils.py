@@ -1,3 +1,5 @@
+from collections import defaultdict
+from pprint import pprint
 from typing import List, Optional, Union
 import torch
 import torch.nn.functional as F
@@ -359,90 +361,148 @@ def visualise_explanation(
 
 
 #### FOR CELL COMPLEXES ####
+def create_edge_mapping(graph):
+    edge_type = graph.edge_type # list of edge types for each edge
+    # create a mapping {(min(u,v), max(u,v)): [edge_idx]}
+    cells_to_connections = defaultdict(list)
+    for i in range(len(graph.edge_index[0])):
+        u, v = graph.edge_index[0][i].item(), graph.edge_index[1][i].item()
+        cells_to_connections[(min(u, v), max(u, v))].append(i)
+    
+    # convert to tuple mapping (min(u,v), max(u,v)): (edge_idx)
+    for key in cells_to_connections.keys():
+        cells_to_connections[key] = tuple(cells_to_connections[key])
+    
+    def query_edges(node_idx):
+        # get all edges of the form (node_idx, x) and (x, node_idx) where node_idx > x
+        edges = []
+        for i in range(len(graph.edge_index[0])):
+            u, v = graph.edge_index[0][i].item(), graph.edge_index[1][i].item()
+            big_idx = max(u, v)
+            if big_idx == node_idx:
+                edges.append((min(u, v), max(u, v)))
+        edges = list(set(edges))
+        return edges
+    
+    # get node_type_1 to node_type_2 edges
+    conn_1_2_to_conn_0_1 = []
+    for i in range(len(edge_type)):
+        if edge_type[i] == 3 or edge_type[i] == 4:
+            u, v = graph.edge_index[0][i].item(), graph.edge_index[1][i].item()
+            mi = min(u, v)
+            ma = max(u, v)
+            u, v = mi, ma
+            print(f"Edge {i} maps to {u, v}")
+            connections_0_1 = query_edges(u)
+            for conn in connections_0_1:
+                conn_1_2_to_conn_0_1.append((cells_to_connections[u, v], cells_to_connections[conn]))
+    
+    conn_0_1_to_conn_0_0 = []
+    for i in range(len(edge_type)):
+        if edge_type[i] == 1 or edge_type[i] == 2:
+            u, v = graph.edge_index[0][i].item(), graph.edge_index[1][i].item()
+            edge_idx = max(u, v)
+            
+            connections_0_1 = query_edges(edge_idx)
+            print(f"edge node {u} maps to {connections_0_1}")
+            x, y = connections_0_1[0][0], connections_0_1[1][0]
+            edge_0_0 = (min(x, y), max(x, y))
+
+            for conn in connections_0_1:
+                conn_0_1_to_conn_0_0.append((cells_to_connections[conn], cells_to_connections[edge_0_0]))
+    
+    # pprint(conn_1_2_to_conn_0_1)
+    
+    # construct conn_1_2_to_conn_0_0
+    conn_1_2_to_conn_0_0 = []
+    for i in range(len(conn_1_2_to_conn_0_1)):
+        for j in range(len(conn_0_1_to_conn_0_0)):
+            if conn_1_2_to_conn_0_1[i][1] == conn_0_1_to_conn_0_0[j][0]:
+                conn_1_2_to_conn_0_0.append((conn_1_2_to_conn_0_1[i][0], conn_0_1_to_conn_0_0[j][1]))
+    conn_1_2_to_conn_0_0 = list(set(conn_1_2_to_conn_0_0))
+    # pprint(conn_1_2_to_conn_0_0)
+    
+    # [(1_2_edge_up, 1_2_edge_down), (0_1_edge_up, 0_1_edge_down)]
+    # = 
+    # [(1_2_edge_up, 0_1_edge_up), (1_2_edge_up, 0_1_edge_down), (1_2_edge_down, 0_1_edge_up), (1_2_edge_down, 0_1_edge_down)]
+    
+    conn_1_2_to_conn_0_1_temp = []
+    for conn_pair in conn_1_2_to_conn_0_1:
+        edge_1_2_0 = conn_pair[0][0]
+        edge_1_2_1 = conn_pair[0][1]
+        
+        edge_0_1_0 = conn_pair[1][0]
+        edge_0_1_1 = conn_pair[1][1]
+        
+        conn_1_2_to_conn_0_1_temp.append((edge_1_2_0, edge_0_1_0))
+        conn_1_2_to_conn_0_1_temp.append((edge_1_2_0, edge_0_1_1))
+        conn_1_2_to_conn_0_1_temp.append((edge_1_2_1, edge_0_1_0))
+        conn_1_2_to_conn_0_1_temp.append((edge_1_2_1, edge_0_1_1))
+    
+    conn_1_2_to_conn_0_1 = conn_1_2_to_conn_0_1_temp
+    
+    conn_0_1_to_conn_0_0_temp = []
+    for conn_pair in conn_0_1_to_conn_0_0:
+        edge_0_1_0 = conn_pair[0][0]
+        edge_0_1_1 = conn_pair[0][1]
+        
+        edge_0_0_0 = conn_pair[1][0]
+        edge_0_0_1 = conn_pair[1][1]
+        
+        conn_0_1_to_conn_0_0_temp.append((edge_0_1_0, edge_0_0_0))
+        conn_0_1_to_conn_0_0_temp.append((edge_0_1_0, edge_0_0_1))
+        conn_0_1_to_conn_0_0_temp.append((edge_0_1_1, edge_0_0_0))
+        conn_0_1_to_conn_0_0_temp.append((edge_0_1_1, edge_0_0_1))
+    
+    conn_0_1_to_conn_0_0 = conn_0_1_to_conn_0_0_temp
+    
+    conn_1_2_to_conn_0_0_temp = []
+    for conn_pair in conn_1_2_to_conn_0_0:
+        edge_1_2_0 = conn_pair[0][0]
+        edge_1_2_1 = conn_pair[0][1]
+        
+        edge_0_0_0 = conn_pair[1][0]
+        edge_0_0_1 = conn_pair[1][1]
+        
+        conn_1_2_to_conn_0_0_temp.append((edge_1_2_0, edge_0_0_0))
+        conn_1_2_to_conn_0_0_temp.append((edge_1_2_0, edge_0_0_1))
+        conn_1_2_to_conn_0_0_temp.append((edge_1_2_1, edge_0_0_0))
+        conn_1_2_to_conn_0_0_temp.append((edge_1_2_1, edge_0_0_1))
+        
+    conn_1_2_to_conn_0_0 = conn_1_2_to_conn_0_0_temp
+    
+    return {
+        'cycle_node_to_edge_node': conn_1_2_to_conn_0_1,
+        'edge_node_to_edge': conn_0_1_to_conn_0_0,
+        'cycle_node_to_edge': conn_1_2_to_conn_0_0
+    }
 
 
-def hierarchical_prop(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
+def hierarchical_prop(graph, explanation, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
 
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
-    # print(num_og_edges, new_edge_mask)
+    mappings = create_edge_mapping(graph)
+    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
+    edge_node_to_edge = mappings['edge_node_to_edge']
     
-    node_to_edge = {}
-    node_to_cycle = {}
-
-    last_seen = -1
-    counter = 0
-    for i in range(len(edge_type)):
-        if edge_type[i] == 0:
-            new_edge_mask[i] = edge_mask[i]
-
-        if edge_type[i] == 1:
-            if last_seen != 1:
-                counter = 0
-            else:
-                counter += 1
-
-            idx = mapping[1][counter]
-            node_to_edge[idx] = [i]
-            # new_edge_mask[idx] += edge_mask[i]
-        elif edge_type[i] == 2:
-            if last_seen != 2:
-                counter = 0
-            else:
-                counter += 1
-
-            idx = mapping[2][counter]
-            node_to_edge[idx].append(i)
-            print(len(node_to_edge[idx]))
-            # new_edge_mask[idx] += edge_mask[i]
-        elif edge_type[i] == 3:
-            if last_seen != 3:
-                counter = 0
-            else:
-                counter += 1
-
-            # print('ERRROR', i)
-            # print(edge_type[i], edge_type[i + 1])
-            idx = mapping[3][counter][1]
-            node_to_cycle[idx] = [i]
-            print(f"3 idx: {idx}, len: {len(node_to_cycle[idx])} i: {i}")
-            # new_edge_mask[idx] += edge_mask[i]
-        elif edge_type[i] == 4:
-            if last_seen != 4:
-                counter = 0
-            else:
-                counter += 1
-
-            idx = mapping[4][counter][1]
-            node_to_cycle[idx].append(i)
-            print(f"4 idx: {idx}, len: {len(node_to_cycle[idx])} i: {i}")
-            # new_edge_mask[idx] += edge_mask[i]
-
-        last_seen = edge_type[i]
     
-    # create an edge to cycle mapping from the node_to_cycle and node_to_edge mappings
-    edge_to_cycle = {}
-    for node, cycle_idxs in node_to_cycle.items():
+    for edge_pair in cycle_node_to_edge_node:
+        edge_1_2 = edge_pair[0]
+        edge_0_1 = edge_pair[1]
+        edge_mask[edge_0_1] += (edge_mask[edge_1_2] - 0.5) * alpha_c
         
-        edge_idxs = node_to_edge[node]
-        print(f"node: {node}, len_edge: {len(edge_idxs)}, len_cycle: {len(cycle_idxs)}")
-        for i in range(len(cycle_idxs)):
-            edge_to_cycle[edge_idxs[i]] = cycle_idxs[i]
+    for edge_pair in edge_node_to_edge:
+        edge_0_1 = edge_pair[0]
+        edge_0_0 = edge_pair[1]
+        edge_mask[edge_0_0] += (edge_mask[edge_0_1] - 0.5) * alpha_e
     
-    # transfer importance from cycle idxs to edge idx in the original mask
-    for edge_idx, cycle_idx in edge_to_cycle.items():
-        edge_mask[edge_idx] += (edge_mask[cycle_idx] - 0.5) * alpha_c
+    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
     
-    # transfer importance from edge idxs to edge idx in the new mask
-    for node, edge_idxs in node_to_edge.items():
-        for edge_idx in edge_idxs:
-            new_edge_mask[node] += (edge_mask[edge_idx] - 0.5) * alpha_e
-        
     return new_edge_mask
-
 
 def direct_prop(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
@@ -451,57 +511,25 @@ def direct_prop(graph, explanation, mapping, alpha_c=1.0, alpha_e=1.0):
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
-
-    # print(num_og_edges, new_edge_mask)
-
-    last_seen = -1
-    counter = 0
-    for i in range(len(edge_type)):
-        if edge_type[i] == 0:
-            new_edge_mask[i] = edge_mask[i]
-
-        if edge_type[i] == 1:
-            if last_seen != 1:
-                counter = 0
-            else:
-                counter += 1
-
-            idx = mapping[1][counter]
-            new_edge_mask[idx] += (edge_mask[i] - 0.5) * alpha_e
-        elif edge_type[i] == 2:
-            if last_seen != 2:
-                counter = 0
-            else:
-                counter += 1
-
-            idx = mapping[2][counter]
-            new_edge_mask[idx] += (edge_mask[i] - 0.5) * alpha_e
-        elif edge_type[i] == 3:
-            if last_seen != 3:
-                counter = 0
-            else:
-                counter += 1
-
-            # print('ERRROR', i)
-            # print(edge_type[i], edge_type[i + 1])
-            idx = mapping[3][counter][1]
-            new_edge_mask[idx] += (
-                edge_mask[i] - 0.5
-            ) * alpha_c  # alpha is a scaling factor
-        elif edge_type[i] == 4:
-            if last_seen != 4:
-                counter = 0
-            else:
-                counter += 1
-
-            idx = mapping[4][counter][1]
-            new_edge_mask[idx] += (
-                edge_mask[i] - 0.5
-            ) * alpha_c
-
-        last_seen = edge_type[i]
-
+    mappings = create_edge_mapping(graph)
+    cycle_node_to_edge = mappings['cycle_node_to_edge']
+    edge_node_to_edge = mappings['edge_node_to_edge']
+    
+    
+    for edge_pair in cycle_node_to_edge:
+        edge_1_2 = edge_pair[0]
+        edge_0_0 = edge_pair[1]
+        edge_mask[edge_0_0] += (edge_mask[edge_1_2] - 0.5) * alpha_c
+        
+    for edge_pair in edge_node_to_edge:
+        edge_0_1 = edge_pair[0]
+        edge_0_0 = edge_pair[1]
+        edge_mask[edge_0_0] += (edge_mask[edge_0_1] - 0.5) * alpha_e
+    
+    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
+    
     return new_edge_mask
+    
 
 
 def remove_type_2_nodes(data):
@@ -585,6 +613,7 @@ def explain_cell_complex_dataset(
     # for i in tqdm(range(num), desc="Explaining Cell Complexes"):
     while count < num and n < len(dataset):
         data, gt_explanation, mapping = dataset[n]
+    
         
         if len(gt_explanation) == 0:
             n += 1
@@ -612,7 +641,7 @@ def explain_cell_complex_dataset(
             data = remove_type_1_nodes(data)
         data = data.to(device)
         pred = get_graph_level_explanation(explainer, data)
-
+        
         edge_mask = None
         # print("SPREAD")
         if args.prop_strategy == "direct_prop":
@@ -628,6 +657,8 @@ def explain_cell_complex_dataset(
             raise NotImplementedError(
                 f"Propagation strategy {args.prop_strategy} is not implemented."
             )
+        
+        exit()
 
         if args.explanation_aggregation == "topk":
             k = int(0.25 * len(edge_mask))

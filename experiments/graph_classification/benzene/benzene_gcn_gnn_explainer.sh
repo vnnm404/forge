@@ -13,7 +13,7 @@ python3 main.py \
     --explanation_epochs 200 \
     --save_explanation_dir explanations \
     --num_explanations 100 \
-    --prop_strategy direct_prop \
+    --prop_strategy hierarchical_prop \
     --alpha_c 1.0 \
     --alpha_e 1.0 \
     --start_seed 0 \

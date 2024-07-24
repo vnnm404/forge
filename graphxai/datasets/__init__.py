@@ -9,3 +9,4 @@ from .real_world.benzene.benzene import Benzene
 from .real_world.fluoride_carbonyl.fluoride_carbonyl import FluorideCarbonyl
 from .real_world.mutagenicity import Mutagenicity
 from .real_world.alkane_carbonyl.alkane_carbonyl import AlkaneCarbonyl
+from .synth import Synth

@@ -115,7 +115,7 @@ class Synth(GraphDataset):
         num_samples,
         shape1,
         shape2,
-        split_sizes=(0.7, 0.2, 0.1),
+        split_sizes=(0.8, 0.2, 0),
         seed=None,
         device=None,
     ):

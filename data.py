@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import Tuple, Union
-from graphxai.datasets import Benzene, AlkaneCarbonyl, GraphDataset, Mutagenicity, FluorideCarbonyl
+from graphxai.datasets import Benzene, AlkaneCarbonyl, GraphDataset, Mutagenicity, FluorideCarbonyl, Synth
 from torch_geometric.data import HeteroData, Dataset
 from torch_geometric.loader import DataLoader
 import torch
@@ -18,6 +18,8 @@ def load_dataset(name="Benzene", seed=0):
         return Mutagenicity(root="data/", seed=seed)
     elif name == "FluorideCarbonyl":
         return FluorideCarbonyl(seed=seed)
+    elif name == "Synth":
+        return Synth(seed=seed, shape1="house", shape2="wheel", num_samples=2000)
     else:
         raise NotImplementedError(f"Dataset {name} is not implemented.")
 

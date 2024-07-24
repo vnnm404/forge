@@ -529,36 +529,6 @@ def direct_prop(graph, explanation, alpha_c=1.0, alpha_e=1.0):
     return new_edge_mask
     
 
-def one_skeleton_prop(graph, explanation, alpha_e=1.0):
-    edge_mask = explanation["edge_mask"]
-    edge_type = graph.edge_type
-
-    num_og_edges = (edge_type == 0).sum().item()
-    new_edge_mask = torch.zeros(num_og_edges)
-    new_edge_mask = new_edge_mask.to(device)
-    mappings = create_edge_mapping(graph)
-    edge_node_to_edge = mappings['edge_node_to_edge']
-        
-    for edge_pair in edge_node_to_edge:
-        edge_0_1 = edge_pair[0]
-        edge_0_0 = edge_pair[1]
-        edge_mask[edge_0_0] += (edge_mask[edge_0_1] - 0.5) * alpha_e
-    
-    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
-    
-    return new_edge_mask
-
-def zero_skeleton_prop(graph, explanation):
-    edge_mask = explanation["edge_mask"]
-    edge_type = graph.edge_type
-
-    num_og_edges = (edge_type == 0).sum().item()
-    new_edge_mask = torch.zeros(num_og_edges)
-    new_edge_mask = new_edge_mask.to(device)
-    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
-    
-    return new_edge_mask
-
 def norm(x):
     # x is a tensor
     return (x - x.min()) / (x.max() - x.min())

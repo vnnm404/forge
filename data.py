@@ -50,7 +50,13 @@ def graph_to_complex(g):
         u = node_u[i].item()
         v = node_v[i].item()
         id = edge_id[i].item()
-        feat = g.edge_attr[id]
+        # if edge attr exists
+        if hasattr(g, "edge_attr") and g.edge_attr is not None:
+            feat = g.edge_attr[id]
+        else:
+            # otherwise, set feat to be the average of the node features
+            feat = (g.x[u] + g.x[v]) / 2
+        
         if (min(u, v), max(u, v)) in cache:
             mapper['edge_node_to_edge'][cache[(min(u, v), max(u, v))]].append(id)
             continue

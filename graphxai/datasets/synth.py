@@ -11,9 +11,10 @@ from torch_geometric.data import Data
 import random
 import numpy as np
 
+from graphxai.utils import Explanation
 
-def create_shape_graph(shape):
-    # Number of nodes in the tree is a random number between 25 and 100
+def create_shape_graph(shape, features='random'):
+    # Number of nodes in the tree is a random number between 10 and 25
     n = random.randint(10, 25)
     
     # Generate a random tree using networkx
@@ -67,7 +68,16 @@ def create_shape_graph(shape):
         if u >= n and v >= n:
             mask[i] = 1
     
-    return Data(edge_index=edge_index), mask
+    # Generate node features
+    num_nodes = tree.number_of_nodes()
+    if features == 'uniform':
+        node_features = torch.ones((num_nodes, 16))
+    elif features == 'random':
+        node_features = torch.rand((num_nodes, 16))
+    else:
+        raise ValueError("Unknown features type")
+    
+    return Data(edge_index=edge_index, x=node_features), [Explanation(edge_imp=mask)]
 
 
 def visualize_graph(data, edge_mask):
@@ -138,7 +148,7 @@ class Synth(GraphDataset):
         # print(self.graphs)
         # print(self.explanations)
 
-        visualize_graph(self.graphs[0], self.explanations[0])
+        # visualize_graph(self.graphs[0], self.explanations[0])
 
         super().__init__(
             name="Synth", seed=seed, split_sizes=split_sizes, device=device

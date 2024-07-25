@@ -188,7 +188,7 @@ def explain_graph_dataset(
             ).float()
         elif args.explanation_aggregation == "threshold":
             pred["edge_mask"] = pred["edge_mask"] >= 0.5
-        faithfulness = explanation_fairness(explainer, data, pred)
+        faithfulness = explanation_faithfulness(explainer, data, pred)
         f.append(faithfulness)
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
@@ -199,7 +199,7 @@ def explain_graph_dataset(
     print(f)
     return pred_explanations, ground_truth_explanations, f
 
-def explanation_fairness(graph_explainer: Union[Explainer, _BaseExplainer], data: Data, predicted_explanation: PyGExplanation):
+def explanation_faithfulness(graph_explainer: Union[Explainer, _BaseExplainer], data: Data, predicted_explanation: PyGExplanation):
     predicted_explanation["edge_mask"] = predicted_explanation["edge_mask"].float()
     y = graph_explainer.get_prediction(data.x, data.edge_index)
     y_masked = graph_explainer.get_masked_prediction(x = data.x, edge_index = data.edge_index, edge_mask = predicted_explanation["edge_mask"])
@@ -596,7 +596,7 @@ def explain_cell_complex_dataset(
         elif args.explanation_aggregation == "threshold":
             pred["edge_mask"] = (edge_mask >= 0.5).float()
         if graph_explainer is not None:
-            faithfulness = explanation_fairness(graph_explainer, dataset.get_underlying_graph(n).to(device), pred)
+            faithfulness = explanation_faithfulness(graph_explainer, dataset.get_underlying_graph(n).to(device), pred)
             f.append(faithfulness)
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)

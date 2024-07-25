@@ -65,6 +65,7 @@ def test(model, data_loader):
     recall = recall_score(y_true, y_pred)
     f1 = f1_score(y_true, y_pred)
 
-    # TODO: add classification report
+    # create a mask for the idxs of the correct predictions
+    correct_mask = y_true == y_pred
 
-    return accuracy, precision, recall, f1
+    return accuracy, precision, recall, f1, correct_mask

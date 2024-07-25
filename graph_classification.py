@@ -76,15 +76,15 @@ def setup_model(train_loader, test_loader, type="graphs"):
         )
         print(f"Final loss: {final_loss}")
 
-    accuracy, precision, recall, f1 = test(model, test_loader)
+    accuracy, precision, recall, f1, correct_mask = test(model, test_loader)
     print(
         f"Accuracy: {accuracy}\n Precision: {precision}\n Recall: {recall}\n F1: {f1}"
     )
 
-    return model
+    return model, correct_mask
 
 
-def explain(model, dataset, graph_explainer=None):
+def explain(model, dataset, correct_mask, graph_explainer=None):
     explainer = initialise_explainer(
         model=model,
         explanation_algorithm_name=args.explanation_algorithm,
@@ -92,7 +92,7 @@ def explain(model, dataset, graph_explainer=None):
         explanation_lr=args.explanation_lr,
     )
     pred_explanations, ground_truth_explanations, faithfulness = explain_dataset(
-        explainer, dataset, num=args.num_explanations, graph_explainer=graph_explainer
+        explainer, dataset, num=args.num_explanations, correct_mask=correct_mask, graph_explainer=graph_explainer
     )
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
     metrics["faithfulness"] = faithfulness
@@ -140,12 +140,13 @@ def graph_classification():
 
         dataset, train_loader, test_loader = load_graph_data(seed=seed)
 
-        graph_model = setup_model(
+        graph_model, graph_correct_mask = setup_model(
             train_loader=train_loader, test_loader=test_loader, type="graphs"
         )
         graph_pred_explanations, ground_truth_explanations, metrics, explainer = explain(
             model=graph_model,
             dataset=dataset,
+            correct_mask=graph_correct_mask,
         )
         
         explainers[seed] = explainer
@@ -217,11 +218,11 @@ def graph_classification():
 
         complex_dataset, train_loader, test_loader = load_complex_data(seed=seed)
 
-        model = setup_model(
+        model, complex_correct_mask = setup_model(
             train_loader=train_loader, test_loader=test_loader, type="complexes"
         )
         complex_pred_explanations, _, metrics, _ = explain(
-            model=model, dataset=complex_dataset, # graph_explainer=explainers[seed]
+            model=model, dataset=complex_dataset, correct_mask=complex_correct_mask, graph_explainer=explainers[seed]
         )
 
         # if args.test_complex_train_graph_dataset:

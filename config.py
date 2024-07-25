@@ -18,11 +18,20 @@ def load_args():
             "Mutagenicity",
             "FluorideCarbonyl",
             "Synth",
-            "House",
-            "Triangle",
-            "Diamond",
-            "Wheel",
         ],
+    )
+    parser.add_argument(
+        '--synth_shape_1',
+        type=str,
+        default='cycle_6',
+        help='The shape of the first class in the synthetic dataset',
+        choices=['cycle_4', 'cycle_5', 'cycle_6', 'cycle_8', 'wheel', 'house', 'cube', 'peterson', 'house_x', 'star', 'bull']
+    )
+    parser.add_argument(
+        '--synth_shape_2',
+        type=str,
+        default='star',
+        help='The shape of the second class in the synthetic dataset',
     )
     parser.add_argument(
         "--model",

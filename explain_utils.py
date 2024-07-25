@@ -149,7 +149,7 @@ def kl_divergence_distributions(P, Q):
 
 
 def explain_graph_dataset(
-    explainer: Union[Explainer, _BaseExplainer], dataset: GraphDataset, num=50
+    explainer: Union[Explainer, _BaseExplainer], dataset: GraphDataset, num=50, correct_mask=None
 ):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
@@ -157,15 +157,20 @@ def explain_graph_dataset(
     pred_explanations = []
     ground_truth_explanations = []
     count = 0
-    n = 0
     f = []
     # for i in tqdm(range(num), desc="Explaining Graphs"):
-    while count < num and n < len(dataset):
-        data, gt_explanation = dataset[n]
-        n += 1
+    for i, index in enumerate(tqdm(dataset.test_index)):
+        if count >= num:
+            break
+        
+        if not correct_mask[i]:
+            continue
+        
+        data, gt_explanation = dataset[index]
+
         if len(gt_explanation) == 0:
             continue
-
+        
         zero_flag = True
         for gt in gt_explanation:
             if gt.edge_imp.sum().item() != 0:
@@ -173,10 +178,9 @@ def explain_graph_dataset(
 
         if zero_flag:
             continue
-
+    
         data = data.to(device)
-        # gt_explanation = gt_explanation.to(device)
-
+        
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
         pred = get_graph_level_explanation(explainer, data)
@@ -535,7 +539,7 @@ def norm(x):
 
 
 def explain_cell_complex_dataset(
-    explainer: Union[Explainer, _BaseExplainer], dataset: ComplexDataset, num=50, graph_explainer=None
+    explainer: Union[Explainer, _BaseExplainer], dataset: ComplexDataset, num=50, correct_mask=None, graph_explainer=None
 ):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
@@ -544,43 +548,45 @@ def explain_cell_complex_dataset(
     pred_explanations = []
     ground_truth_explanations = []
     count = 0
-    n = 0
     f = []
     # for i in tqdm(range(num), desc="Explaining Cell Complexes"):
-    while count < num and n < len(dataset):
-        data, gt_explanation, _ = dataset[n]
-    
+    for i, index in enumerate(tqdm(dataset.test_index)):
+        if count >= num:
+            break
+        
+        if not correct_mask[i]:
+            continue
+        
+        data, gt_explanation, _ = dataset[index]
         
         if len(gt_explanation) == 0:
-            n += 1
             continue
-
+        
         zero_flag = True
         for gt in gt_explanation:
             if gt.edge_imp.sum().item() != 0:
                 zero_flag = False
 
         if zero_flag:
-            n += 1
             continue
-
+        
+        data = data.to(device)
+        
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
-
-        # print(data)
-        # print(data.node_type)
-        # print(mapping)
-        data = data.to(device)
         pred = get_graph_level_explanation(explainer, data)
         
         edge_mask = None
-        # print("SPREAD")
+        
+        if args.prop_strategy == "all":
+            direct_prop_mask = norm(direct_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e))
+            hierarchical_prop_mask = norm(hierarchical_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e))
+        
         if args.prop_strategy == "direct_prop":
             edge_mask = norm(
                 direct_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
             )
         elif args.prop_strategy == "hierarchical_prop":
-            # print("EDGE")
             edge_mask = norm(
                 hierarchical_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
             )
@@ -596,12 +602,11 @@ def explain_cell_complex_dataset(
         elif args.explanation_aggregation == "threshold":
             pred["edge_mask"] = (edge_mask >= 0.5).float()
         if graph_explainer is not None:
-            faithfulness = explanation_faithfulness(graph_explainer, dataset.get_underlying_graph(n).to(device), pred)
+            faithfulness = explanation_faithfulness(graph_explainer, dataset.get_underlying_graph(index).to(device), pred)
             f.append(faithfulness)
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
         count += 1
-        n += 1
     if f == []:
         f = 0
     else:
@@ -611,12 +616,12 @@ def explain_cell_complex_dataset(
 
 
 def explain_dataset(
-    explainer: Explainer, dataset: Union[GraphDataset, ComplexDataset], num=50, graph_explainer=None
+    explainer: Explainer, dataset: Union[GraphDataset, ComplexDataset], num=50, correct_mask=None,graph_explainer=None
 ):
     if isinstance(dataset, ComplexDataset):
-        return explain_cell_complex_dataset(explainer, dataset, num, graph_explainer=graph_explainer)
+        return explain_cell_complex_dataset(explainer, dataset, num, correct_mask, graph_explainer=graph_explainer)
     elif isinstance(dataset, GraphDataset):
-        return explain_graph_dataset(explainer, dataset, num)
+        return explain_graph_dataset(explainer, dataset, num, correct_mask)
 
 
 def explain_nodes_graphs(explainer: Explainer, data: Data, dataset: NodeDataset):

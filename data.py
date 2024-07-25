@@ -14,7 +14,7 @@ import torch
 import networkx as nx
 import numpy as np
 import networkx as nx
-
+from config import args
 # from config import args
 
 
@@ -28,7 +28,7 @@ def load_dataset(name="Benzene", seed=0):
     elif name == "FluorideCarbonyl":
         return FluorideCarbonyl(seed=seed)
     elif name == "Synth":
-        return Synth(seed=seed, shape1="house", shape2="wheel", num_samples=2000)
+        return Synth(seed=seed, shape1=args.synth_shape_1, shape2=args.synth_shape_2, num_samples=2000)
     else:
         raise NotImplementedError(f"Dataset {name} is not implemented.")
 
@@ -395,6 +395,8 @@ def graph_to_full_complex(g):
 class ComplexDataset(Dataset):
     def __init__(self, dataset):
         self.dataset = dataset
+        self.train_index = dataset.train_index
+        self.test_index = dataset.test_index
 
     def __len__(self):
         return len(self.dataset)
@@ -446,11 +448,8 @@ def get_complex_data_loaders(
     Returns the data loaders for cell complex datasets.
     """
     # data loader
-    train_data = [dataset[i][0] for i in range(int(len(dataset) * train_frac))]
-    test_data = [
-        dataset[i][0] for i in range(int(len(dataset) * train_frac), len(dataset))
-    ]
-
+    train_data = [dataset[i][0] for i in dataset.train_index]
+    test_data = [dataset[i][0] for i in dataset.test_index]
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 

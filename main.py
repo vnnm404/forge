@@ -4,6 +4,9 @@ from node_classification import node_classification
 
 
 if __name__ == "__main__":
+    print("============= Args =============")
+    print(args)
+    print("================================")
     if args.task_level == "graph":
         graph_classification()
     elif args.task_level == "node":

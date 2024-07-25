@@ -40,6 +40,10 @@ def create_shape_graph(shape, features='random'):
         cycle = nx.petersen_graph()
     elif shape == 'house_x':
         cycle = nx.house_x_graph()
+    elif shape == 'star':
+        cycle = nx.star_graph(6)
+    elif shape == 'bull':
+        cycle = nx.bull_graph()
     else:
         raise ValueError("Unknown shape type")
     

@@ -486,14 +486,13 @@ def create_edge_mapping(graph):
     }
 
 
-def hierarchical_prop(graph, explanation, alpha_c=1.0, alpha_e=1.0):
+def hierarchical_prop(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
 
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
-    mappings = create_edge_mapping(graph)
     cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
     edge_node_to_edge = mappings['edge_node_to_edge']
     
@@ -512,14 +511,14 @@ def hierarchical_prop(graph, explanation, alpha_c=1.0, alpha_e=1.0):
     
     return new_edge_mask
 
-def direct_prop(graph, explanation, alpha_c=1.0, alpha_e=1.0):
+def direct_prop(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
 
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
-    mappings = create_edge_mapping(graph)
+    
     cycle_node_to_edge = mappings['cycle_node_to_edge']
     edge_node_to_edge = mappings['edge_node_to_edge']
     
@@ -538,7 +537,7 @@ def direct_prop(graph, explanation, alpha_c=1.0, alpha_e=1.0):
     
     return new_edge_mask
 
-def probabilistic_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0):
+def probabilistic_propagation(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
     num_og_edges = (edge_type == 0).sum().item()
@@ -546,7 +545,6 @@ def probabilistic_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0):
     new_edge_mask = new_edge_mask.to(device)
 
 
-    mappings = create_edge_mapping(graph)
     cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
     edge_node_to_edge = mappings['edge_node_to_edge']
 
@@ -588,14 +586,13 @@ def random_noise_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0, noise
     new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
     return new_edge_mask
 
-def nonlinear_activation_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0):
+def nonlinear_activation_propagation(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
 
-    mappings = create_edge_mapping(graph)
     cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
     edge_node_to_edge = mappings['edge_node_to_edge']
 
@@ -611,14 +608,13 @@ def nonlinear_activation_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.
     return new_edge_mask
 
 
-def entropy_based_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0):
+def entropy_based_propagation(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
 
-    mappings = create_edge_mapping(graph)
     cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
     edge_node_to_edge = mappings['edge_node_to_edge']
 
@@ -681,34 +677,49 @@ def explain_cell_complex_dataset(
         
         edge_mask = None    
         
-        if args.prop_strategy == "all":
-            direct_prop_mask = norm(direct_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e))
-            hierarchical_prop_mask = norm(random_noise_propagation(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e))
-        
-        if args.prop_strategy == "direct_prop":
-            edge_mask = norm(
-                direct_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
-            )
-        elif args.prop_strategy == "hierarchical_prop":
-            edge_mask = norm(
-                hierarchical_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
-            )
+        if args.prop_strategy == "hp_tuning":
+            info_prop_methods = []
+            mappings = create_edge_mapping(data)
+            for prop_method in tqdm(["direct_prop", "hierarchical_prop", "nonlinear_activation_propagation", "entropy_based_propagation"]):
+                for a_c in [0, 0.5, 1.0, 1.5]:
+                    for a_e in [0, 0.5, 1.0, 1.5]:
+                        edge_mask = norm(globals()[prop_method](data, pred, mappings, alpha_c=a_c, alpha_e=a_e))
+                        edge_mask = (edge_mask >= 0.5).float()
+                        info_prop_methods.append(
+                            {
+                                "prop_method": prop_method,
+                                "alpha_c": a_c,
+                                "alpha_e": a_e,
+                                "edge_mask": edge_mask
+                            }
+                        )
+            pred_explanations.append(info_prop_methods)
+            ground_truth_explanations.append(gt_explanation)
         else:
-            raise NotImplementedError(
-                f"Propagation strategy {args.prop_strategy} is not implemented."
-            )
+            if args.prop_strategy == "direct_prop":
+                edge_mask = norm(
+                    direct_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+                )
+            elif args.prop_strategy == "hierarchical_prop":
+                edge_mask = norm(
+                    hierarchical_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+                )
+            else:
+                raise NotImplementedError(
+                    f"Propagation strategy {args.prop_strategy} is not implemented."
+                )
 
-        if args.explanation_aggregation == "topk":
-            k = int(0.25 * len(edge_mask))
-            # take top k edges as 1 and rest as 0
-            pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
-        elif args.explanation_aggregation == "threshold":
-            pred["edge_mask"] = (edge_mask >= 0.5).float()
-        if graph_explainer is not None:
-            faithfulness = explanation_faithfulness(graph_explainer, dataset.get_underlying_graph(index).to(device), pred)
-            f.append(faithfulness)
-        pred_explanations.append(pred)
-        ground_truth_explanations.append(gt_explanation)
+            if args.explanation_aggregation == "topk":
+                k = int(0.25 * len(edge_mask))
+                # take top k edges as 1 and rest as 0
+                pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
+            elif args.explanation_aggregation == "threshold":
+                pred["edge_mask"] = (edge_mask >= 0.5).float()
+            if graph_explainer is not None:
+                faithfulness = explanation_faithfulness(graph_explainer, dataset.get_underlying_graph(index).to(device), pred)
+                f.append(faithfulness)
+            pred_explanations.append(pred)
+            ground_truth_explanations.append(gt_explanation)
         count += 1
 
     if f == []:

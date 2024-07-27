@@ -9,6 +9,7 @@ from explain_utils import (
     visualise_explanation,
     save_to_graphml,
 )
+from torch_geometric.explain import Explanation
 from config import device, args
 import torch
 import os
@@ -94,6 +95,26 @@ def explain(model, dataset, correct_mask, graph_explainer=None):
     pred_explanations, ground_truth_explanations, faithfulness = explain_dataset(
         explainer, dataset, num=args.num_explanations, correct_mask=correct_mask, graph_explainer=graph_explainer
     )
+    
+    if args.prop_strategy == "hp_tuning":
+        metrics = []
+        for j in range(len(pred_explanations[0])):
+            edge_masks = [pred_explanations[i][j]["edge_mask"] for i in range(len(pred_explanations))]
+
+            pred_expls = [Explanation(edge_mask=edge_mask) for edge_mask in edge_masks]
+
+            metric = explanation_accuracy(
+                ground_truth_explanations, pred_expls
+            )
+            metric["prop_method"] = pred_explanations[0][j]["prop_method"]
+            metric["alpha_c"] = pred_explanations[0][j]["alpha_c"]
+            metric["alpha_e"] = pred_explanations[0][j]["alpha_e"]
+            
+            metrics.append(metric)
+            
+        metrics = sorted(metrics, key=lambda x: x["jaccard"], reverse=True)
+        return pred_explanations, ground_truth_explanations, metrics, explainer
+                
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
     metrics["faithfulness"] = faithfulness
     print(metrics)
@@ -256,25 +277,28 @@ def graph_classification():
     pprint(best_metrics)
 
     if args.save_explanation_dir:
-        # sort metrics by jaccard score
-        complex_metrics = dict(
-            sorted(complex_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
-        )
-
-        # average metrics
-        avg_metrics = {}
-        for key in complex_metrics[seed].keys():
-            avg_metrics[key] = sum([x[key] for x in complex_metrics.values()]) / len(
-                complex_metrics
+        if args.prop_strategy == "hp_tuning":
+            save_metrics(complex_metrics, args.exp_name, "complexes")
+        else:
+            # sort metrics by jaccard score
+            complex_metrics = dict(
+                sorted(complex_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
             )
 
-        complex_metrics["average"] = avg_metrics
+            # average metrics
+            avg_metrics = {}
+            for key in complex_metrics[seed].keys():
+                avg_metrics[key] = sum([x[key] for x in complex_metrics.values()]) / len(
+                    complex_metrics
+                )
 
-        # std dev metrics
-        std_metrics = {}
-        for key in complex_metrics[seed].keys():
-            std_metrics[key] = np.std([x[key] for x in complex_metrics.values()])
+            complex_metrics["average"] = avg_metrics
 
-        complex_metrics["std_dev"] = std_metrics
+            # std dev metrics
+            std_metrics = {}
+            for key in complex_metrics[seed].keys():
+                std_metrics[key] = np.std([x[key] for x in complex_metrics.values()])
 
-        save_metrics(complex_metrics, args.exp_name, "complexes")
+            complex_metrics["std_dev"] = std_metrics
+
+            save_metrics(complex_metrics, args.exp_name, "complexes")

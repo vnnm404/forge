@@ -176,7 +176,7 @@ def load_args():
         type=str,
         default="direct_prop",
         help="The strategy for propagating the higher order explanations",
-        choices=["direct_prop", "hierarchical_prop"],
+        choices=["direct_prop", "hierarchical_prop", "hp_tuning"],
     )
     parser.add_argument(
         "--alpha_c",

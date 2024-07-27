@@ -18,4 +18,4 @@ python3 main.py \
     --alpha_c 1 \
     --alpha_e 1 \
     --start_seed 0 \
-    --end_seed 1
+    --end_seed 10

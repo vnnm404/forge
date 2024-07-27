@@ -210,7 +210,13 @@ def explanation_faithfulness(graph_explainer: Union[Explainer, _BaseExplainer], 
     y = torch.cat([1 - y, y])
     y_masked = torch.cat([1 - y_masked, y_masked])
     
-    kl_div = kl_divergence_distributions(y, y_masked)
+    # convert y_masked to a log probability
+    y_masked = F.log_softmax(y_masked, dim=0)
+    
+    kl_div = F.kl_div(y_masked, y, reduction='batchmean')
+    # kl(p,q) p=log probs, q = prob
+    
+    # kl_div = kl_divergence_distributions(y, y_masked)
     return torch.exp(-kl_div)
     
 
@@ -531,7 +537,104 @@ def direct_prop(graph, explanation, alpha_c=1.0, alpha_e=1.0):
     new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
     
     return new_edge_mask
+
+def probabilistic_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0):
+    edge_mask = explanation["edge_mask"]
+    edge_type = graph.edge_type
+    num_og_edges = (edge_type == 0).sum().item()
+    new_edge_mask = torch.zeros(num_og_edges)
+    new_edge_mask = new_edge_mask.to(device)
+
+
+    mappings = create_edge_mapping(graph)
+    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
+    edge_node_to_edge = mappings['edge_node_to_edge']
+
+    for edge_pair in cycle_node_to_edge_node:
+        edge_1_2, edge_0_1 = edge_pair
+        prob = torch.sigmoid(edge_mask[edge_1_2])
+        edge_mask[edge_0_1] += (prob - 0.5) * alpha_c
+
+    for edge_pair in edge_node_to_edge:
+        edge_0_1, edge_0_0 = edge_pair
+        prob = torch.sigmoid(edge_mask[edge_0_1])
+        edge_mask[edge_0_0] += (prob - 0.5) * alpha_e
+
+    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
+    return new_edge_mask
+
+def random_noise_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0, noise_level=0.05):
+    edge_mask = explanation["edge_mask"]
+    edge_type = graph.edge_type
+    num_og_edges = (edge_type == 0).sum().item()
+    new_edge_mask = torch.zeros(num_og_edges)
+    new_edge_mask = new_edge_mask.to(device)
     
+
+    mappings = create_edge_mapping(graph)
+    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
+    edge_node_to_edge = mappings['edge_node_to_edge']
+
+    for edge_pair in cycle_node_to_edge_node:
+        edge_1_2, edge_0_1 = edge_pair
+        noise = torch.randn(1).item() * noise_level
+        edge_mask[edge_0_1] += ((edge_mask[edge_1_2] - 0.5) * alpha_c) + noise
+
+    for edge_pair in edge_node_to_edge:
+        edge_0_1, edge_0_0 = edge_pair
+        noise = torch.randn(1).item() * noise_level
+        edge_mask[edge_0_0] += ((edge_mask[edge_0_1] - 0.5) * alpha_e) + noise
+
+    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
+    return new_edge_mask
+
+def nonlinear_activation_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0):
+    edge_mask = explanation["edge_mask"]
+    edge_type = graph.edge_type
+    num_og_edges = (edge_type == 0).sum().item()
+    new_edge_mask = torch.zeros(num_og_edges)
+    new_edge_mask = new_edge_mask.to(device)
+
+    mappings = create_edge_mapping(graph)
+    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
+    edge_node_to_edge = mappings['edge_node_to_edge']
+
+    for edge_pair in cycle_node_to_edge_node:
+        edge_1_2, edge_0_1 = edge_pair
+        edge_mask[edge_0_1] += torch.tanh((edge_mask[edge_1_2] - 0.5) * alpha_c)
+
+    for edge_pair in edge_node_to_edge:
+        edge_0_1, edge_0_0 = edge_pair
+        edge_mask[edge_0_0] += torch.tanh((edge_mask[edge_0_1] - 0.5) * alpha_e)
+
+    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
+    return new_edge_mask
+
+
+def entropy_based_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0):
+    edge_mask = explanation["edge_mask"]
+    edge_type = graph.edge_type
+    num_og_edges = (edge_type == 0).sum().item()
+    new_edge_mask = torch.zeros(num_og_edges)
+    new_edge_mask = new_edge_mask.to(device)
+
+    mappings = create_edge_mapping(graph)
+    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
+    edge_node_to_edge = mappings['edge_node_to_edge']
+
+    for edge_pair in cycle_node_to_edge_node:
+        edge_1_2, edge_0_1 = edge_pair
+        entropy = -edge_mask[edge_1_2] * torch.log(edge_mask[edge_1_2] + 1e-9)
+        edge_mask[edge_0_1] += (entropy - 0.5) * alpha_c
+
+    for edge_pair in edge_node_to_edge:
+        edge_0_1, edge_0_0 = edge_pair
+        entropy = -edge_mask[edge_0_1] * torch.log(edge_mask[edge_0_1] + 1e-9)
+        edge_mask[edge_0_0] += (entropy - 0.5) * alpha_e
+
+    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
+    return new_edge_mask
+
 
 def norm(x):
     # x is a tensor
@@ -576,11 +679,11 @@ def explain_cell_complex_dataset(
         assert data.edge_index is not None, "Data must have edge index."
         pred = get_graph_level_explanation(explainer, data)
         
-        edge_mask = None
+        edge_mask = None    
         
         if args.prop_strategy == "all":
             direct_prop_mask = norm(direct_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e))
-            hierarchical_prop_mask = norm(hierarchical_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e))
+            hierarchical_prop_mask = norm(random_noise_propagation(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e))
         
         if args.prop_strategy == "direct_prop":
             edge_mask = norm(
@@ -607,6 +710,7 @@ def explain_cell_complex_dataset(
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
         count += 1
+
     if f == []:
         f = 0
     else:

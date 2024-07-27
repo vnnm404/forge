@@ -4,6 +4,8 @@
 python3 main.py \
     --dataset Synth \
     --model GCN \
+    --synth_shape_1 house_x \
+    --synth_shape_2 star \
     --in_dim 16 \
     --hidden_dim 64 \
     --out_dim 1 \

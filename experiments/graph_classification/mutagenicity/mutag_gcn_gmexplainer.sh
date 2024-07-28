@@ -16,4 +16,4 @@ python3 main.py \
     --num_explanations 100 \
     --prop_strategy hp_tuning \
     --start_seed 0 \
-    --end_seed 10 \
+    --end_seed 10

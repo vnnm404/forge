@@ -1,7 +1,2 @@
-sh experiments/graph_classification/alkane_carbonyl/alkane_carbonyl_gcn_gnn_explainer.sh
-sh experiments/graph_classification/alkane_carbonyl/alkane_carbonyl_gcn_gmexplainer.sh
-sh experiments/graph_classification/alkane_carbonyl/alkane_carbonyl_gat_attn_explainer.sh
-
-sh experiments/graph_classification/mutagenicity/mutag_gcn_gnn_explainer.sh
-sh experiments/graph_classification/mutagenicity/mutag_gcn_gnn_gmexplainer.sh
+sh experiments/graph_classification/mutagenicity/mutag_gcn_gmexplainer.sh
 sh experiments/graph_classification/mutagenicity/mutag_gat_attn_explainer.sh

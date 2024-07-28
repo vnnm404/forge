@@ -2,10 +2,10 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    --dataset Synth \
+    --dataset Synth_house_wheel \
     --model GCN \
-    --synth_shape_1 house_x \
-    --synth_shape_2 star \
+    --synth_shape_1 house \
+    --synth_shape_2 wheel \
     --in_dim 16 \
     --hidden_dim 64 \
     --out_dim 1 \

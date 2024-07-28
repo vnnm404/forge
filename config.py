@@ -18,6 +18,10 @@ def load_args():
             "Mutagenicity",
             "FluorideCarbonyl",
             "Synth",
+            "Synth_house_wheel",
+            "Synth_wheel_cube",
+            "Synth_cycle_6_house",
+            "Synth_cycle_4_star"
         ],
     )
     parser.add_argument(

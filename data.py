@@ -27,7 +27,7 @@ def load_dataset(name="Benzene", seed=0):
         return Mutagenicity(root="data/", seed=seed)
     elif name == "FluorideCarbonyl":
         return FluorideCarbonyl(seed=seed)
-    elif name == "Synth":
+    elif name[:5] == "Synth":
         return Synth(seed=seed, shape1=args.synth_shape_1, shape2=args.synth_shape_2, num_samples=2000)
     else:
         raise NotImplementedError(f"Dataset {name} is not implemented.")

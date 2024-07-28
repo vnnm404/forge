@@ -702,7 +702,7 @@ def explain_cell_complex_dataset(
                 )
             elif args.prop_strategy == "hierarchical_prop":
                 edge_mask = norm(
-                    hierarchical_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+                    hierarchical_prop(data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
                 )
             else:
                 raise NotImplementedError(

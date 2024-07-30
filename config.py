@@ -78,6 +78,8 @@ def load_args():
             "SubgraphX",
             "AttentionExplainer",
             "GraphMaskExplainer",
+            "GNN_LRP",
+            "Random"
         ],
     )
     parser.add_argument(

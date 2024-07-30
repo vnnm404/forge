@@ -17,7 +17,7 @@ from tqdm import tqdm
 from torch_geometric.explain import Explanation as PyGExplanation
 from data import ComplexDataset
 from graphxai.utils.explanation import Explanation as GraphXAIExplanation
-from graphxai.explainers import SubgraphX
+from graphxai.explainers import SubgraphX, GNN_LRP, RandomExplainer
 from graphxai.explainers._base import _BaseExplainer
 from graphxai.datasets.dataset import GraphDataset, NodeDataset
 from sklearn.metrics import (
@@ -50,6 +50,12 @@ def get_explanation_algorithm(name):
         return AttentionExplainer
     elif name == "GraphMaskExplainer":
         return GraphMaskExplainer
+    elif name == "SubgraphX":
+        return SubgraphX
+    elif name == "GNN_LRP":
+        return GNN_LRP
+    elif name == "Random":
+        return RandomExplainer
     raise NotImplementedError(f"Explanation algorithm {name} is not implemented.")
 
 
@@ -92,6 +98,10 @@ def initialise_explainer(
                 return_type="probs",
             ),
         )
+    elif explanation_algorithm_name == "GNN_LRP":
+        return GNN_LRP(model=model)
+    elif explanation_algorithm_name == "Random":
+        return RandomExplainer(model=model)
     elif explanation_algorithm_name != "SubgraphX":
         return Explainer(
             model=model,
@@ -118,9 +128,9 @@ def get_graph_level_explanation(
     explainer: Union[Explainer, _BaseExplainer], data: Data
 ):
     pred = None
-    if args.explanation_algorithm != "SubgraphX":
+    if args.explanation_algorithm not in ["SubgraphX", "GNN_LRP", "Random"]:
         pred = explainer(data.x, edge_index=data.edge_index)
-    elif args.explanation_algorithm == "SubgraphX":
+    elif args.explanation_algorithm in ["SubgraphX", "GNN_LRP", "Random"]:
         pred = explainer.get_explanation_graph(
             data.x, data.edge_index, forward_kwargs={"batch": data.batch}
         )

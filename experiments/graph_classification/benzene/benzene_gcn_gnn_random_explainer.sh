@@ -7,7 +7,7 @@ python3 main.py \
     --in_dim 14 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --explanation_algorithm SubgraphX \
+    --explanation_algorithm Random \
     --graph_epochs 10 \
     --complex_epochs 10 \
     --explanation_epochs 100 \

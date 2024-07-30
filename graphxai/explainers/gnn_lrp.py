@@ -423,11 +423,16 @@ class GNN_LRP(_BaseDecomposition):
         self.model.eval()
 
         # Ensure label is an int
-        label = (
-            int(self.model(x, edge_index, **forward_kwargs).argmax(dim=1).item())
-            if label is None
-            else int(label)
-        )
+        # label = (
+        #     int(self.model(x, edge_index, **forward_kwargs).argmax(dim=1).item())
+        #     if label is None
+        #     else int(label)
+        # )
+
+        if label is None:
+            self.model.eval()
+            pred = self.model(x, edge_index, **forward_kwargs)
+            label = pred > 0.5
 
         walk_steps, fc_steps = self.extract_step(
             x, edge_index, detach=False, split_fc=True, forward_kwargs=forward_kwargs

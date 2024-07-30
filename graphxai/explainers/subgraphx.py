@@ -324,12 +324,12 @@ class SubgraphX(_BaseExplainer):
         )
 
         # Create node mask:
-        node_mask = torch.zeros(all_nodes.shape, dtype=torch.bool)
+        node_mask = torch.zeros(all_nodes.shape, dtype=torch.bool, device=edge_index.device)
         node_mask[subgraph_nodes] = 1
 
         # Create edge_index mask
         num_nodes = maybe_num_nodes(edge_index)
-        n_mask = torch.zeros(num_nodes, dtype=torch.bool)
+        n_mask = torch.zeros(num_nodes, dtype=torch.bool, device=edge_index.device)
         n_mask[subgraph_nodes] = 1
 
         edge_mask = n_mask[edge_index[0]] & n_mask[edge_index[1]]

@@ -28,9 +28,9 @@ for i, y in enumerate(ys):
     plt.plot(x, y, label=y_labels[i], color=colors[i], linewidth=2.5)
 
 # Add titles and labels
-plt.title("Multiple Line Plot", fontsize=20)
-plt.xlabel("X-axis", fontsize=16)
-plt.ylabel("Y-axis", fontsize=16)
+plt.title("Variation of Complex Size with Degree (10,000 nodes)", fontsize=20)
+plt.xlabel("AVg. Degree", fontsize=16)
+plt.ylabel("Number of Edges/Nodes", fontsize=16)
 
 # Customize the ticks
 plt.xticks(fontsize=14)

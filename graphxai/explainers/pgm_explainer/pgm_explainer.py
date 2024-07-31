@@ -133,7 +133,8 @@ class PGMExplainer(_BaseExplainer):
         pred_prob = self._predict(
             x, edge_index, return_type="prob", forward_kwargs=forward_kwargs
         )
-        pred_label = pred_prob.argmax(dim=-1)
+        pred_prob = torch.stack([1 - pred_prob, pred_prob])
+        pred_label = pred_prob.argmax(dim=0)
 
         if self.explain_graph:  # graph-level explanation
             n = x.shape[0]
@@ -156,6 +157,7 @@ class PGMExplainer(_BaseExplainer):
                     return_type="prob",
                     forward_kwargs=forward_kwargs,
                 )
+                pred_prob_pert = torch.stack([1 - pred_prob_pert, pred_prob_pert], dim=0)
                 # pred_diff_mask stores whether the pert causes significant difference
                 pred_diff = pred_prob[pred_label] - pred_prob_pert[pred_label]
                 sample_pred_diff[iter_idx] = pred_diff
@@ -428,10 +430,10 @@ class PGMExplainer(_BaseExplainer):
             p_values.append(p)
             if p < self.p_threshold:
                 dependent_nodes.append(node)
-
         ind_top_k = np.argpartition(p_values, top_k_nodes)[:top_k_nodes]
         node_imp = torch.zeros(n)
-        node_imp[ind_top_k] = 1
+        for i in range(node_imp.shape[0]):
+            node_imp[i] = 1 - p_values[i] # 1 - p_values[i] is the importance of the node
 
         exp = Explanation(node_imp=node_imp)
 

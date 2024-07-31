@@ -1,3 +1,4 @@
+from graphxai.explainers.subgraphx_utils.subgraphx_fns import k_hop_subgraph_with_default_whole_graph
 import numpy as np
 import torch
 import torch.nn as nn
@@ -5,7 +6,7 @@ import tqdm
 import time
 
 from typing import Optional
-from torch_geometric.utils import k_hop_subgraph
+from torch_geometric.utils import k_hop_subgraph, to_networkx
 from torch_geometric.data import Data
 from torch_geometric.nn import GCNConv, GINConv
 

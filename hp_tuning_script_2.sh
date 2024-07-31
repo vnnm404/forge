@@ -1,2 +1,1 @@
-sh experiments/graph_classification/mutagenicity/mutag_gcn_gmexplainer.sh
-sh experiments/graph_classification/mutagenicity/mutag_gat_attn_explainer.sh
+sh experiments/graph_classification/benzene/benzene_gcn_gmexplainer.sh

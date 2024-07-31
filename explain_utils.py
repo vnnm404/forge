@@ -1,6 +1,7 @@
 from collections import defaultdict
 from pprint import pprint
 from typing import List, Optional, Union
+from graphxai.explainers.pgm_explainer.pgm_explainer import PGMExplainer
 import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
@@ -17,7 +18,7 @@ from tqdm import tqdm
 from torch_geometric.explain import Explanation as PyGExplanation
 from data import ComplexDataset
 from graphxai.utils.explanation import Explanation as GraphXAIExplanation
-from graphxai.explainers import SubgraphX, GNN_LRP, RandomExplainer
+from graphxai.explainers import SubgraphX, PGExplainer, GNN_LRP, RandomExplainer
 from graphxai.explainers._base import _BaseExplainer
 from graphxai.datasets.dataset import GraphDataset, NodeDataset
 from sklearn.metrics import (
@@ -118,14 +119,15 @@ def initialise_explainer(
             ),
         )
     elif explanation_algorithm_name == "SubgraphX":
-        return SubgraphX(
-            model=model,
-            num_hops=2 if args.task_level == "node" else None,
-        )
+        # return SubgraphX(
+        #     model=model,
+        #     num_hops=2 if args.task_level == "node" else None,
+        # )
+        return PGMExplainer(model=model, explain_graph=True, perturb_mode="mean")
 
 
 def get_graph_level_explanation(
-    explainer: Union[Explainer, _BaseExplainer], data: Data
+    explainer: Union[Explainer, PGMExplainer, SubgraphX], data: Data
 ):
     pred = None
     if args.explanation_algorithm not in ["SubgraphX", "GNN_LRP", "Random"]:
@@ -134,8 +136,9 @@ def get_graph_level_explanation(
         pred = explainer.get_explanation_graph(
             data.x, data.edge_index, forward_kwargs={"batch": data.batch}
         )
-        pred = {"edge_mask": pred.edge_imp}
+        pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
     return pred
+
 
 def kl_divergence_distributions(P, Q):
     # Convert to numpy arrays for element-wise operations
@@ -145,21 +148,24 @@ def kl_divergence_distributions(P, Q):
     # Add epsilon to avoid log(0) and division by zero issues
     P = np.clip(P, epsilon, 1)
     Q = np.clip(Q, epsilon, 1)
-    
+
     # Ensure P and Q are valid probability distributions
     if not np.all(P >= 0) or not np.all(Q >= 0):
         raise ValueError("All elements in P and Q should be non-negative")
     if not np.isclose(np.sum(P), 1) or not np.isclose(np.sum(Q), 1):
         raise ValueError("P and Q should sum to 1")
-    
+
     # Compute the KL divergence
     kl_div = np.sum(P * np.log(P / Q))
-    
+
     return torch.tensor(kl_div)
 
 
 def explain_graph_dataset(
-    explainer: Union[Explainer, _BaseExplainer], dataset: GraphDataset, num=50, correct_mask=None
+    explainer: Union[Explainer, _BaseExplainer],
+    dataset: GraphDataset,
+    num=50,
+    correct_mask=None,
 ):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
@@ -172,15 +178,15 @@ def explain_graph_dataset(
     for i, index in enumerate(tqdm(dataset.test_index)):
         if count >= num:
             break
-        
+
         if not correct_mask[i]:
             continue
-        
+
         data, gt_explanation = dataset[index]
 
         if len(gt_explanation) == 0:
             continue
-        
+
         zero_flag = True
         for gt in gt_explanation:
             if gt.edge_imp.sum().item() != 0:
@@ -188,21 +194,36 @@ def explain_graph_dataset(
 
         if zero_flag:
             continue
-    
+
         data = data.to(device)
-        
+
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
         pred = get_graph_level_explanation(explainer, data)
-        if args.explanation_aggregation == "topk":
-            k = int(0.25 * len(pred["edge_mask"]))
-            # take top k edges as 1 and rest as 0
-            pred["edge_mask"] = (
-                pred["edge_mask"] > pred["edge_mask"].topk(k).values.min()
-            ).float()
-        elif args.explanation_aggregation == "threshold":
-            pred["edge_mask"] = pred["edge_mask"] >= 0.5
-        faithfulness = explanation_faithfulness(explainer, data, pred)
+        if args.expl_type == "edge":
+            if args.explanation_aggregation == "topk":
+                k = int(0.25 * len(pred["edge_mask"]))
+                # take top k edges as 1 and rest as 0
+                pred["edge_mask"] = (
+                    pred["edge_mask"] >= pred["edge_mask"].topk(k).values.min()
+                ).float()
+            elif args.explanation_aggregation == "threshold":
+                pred["edge_mask"] = pred["edge_mask"] >= 0.5
+        elif args.expl_type == "node":
+            if args.explanation_aggregation == "topk":
+                k = int(0.25 * len(pred["node_mask"]))
+                # take top k nodes as 1 and rest as 0
+                pred["node_mask"] = (
+                    pred["node_mask"] >= pred["node_mask"].topk(k).values.min()
+                ).float()
+            elif args.explanation_aggregation == "threshold":
+                pred["node_mask"] = norm(pred["node_mask"]) >= 0.5
+        else:
+            raise NotImplementedError(
+                f"Explanation type {args.expl_type} is not implemented."
+            )
+        # faithfulness = explanation_faithfulness(explainer, data, pred)
+        faithfulness = torch.tensor(0.0)
         f.append(faithfulness)
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
@@ -213,22 +234,30 @@ def explain_graph_dataset(
     print(f)
     return pred_explanations, ground_truth_explanations, f
 
-def explanation_faithfulness(graph_explainer: Union[Explainer, _BaseExplainer], data: Data, predicted_explanation: PyGExplanation):
-    predicted_explanation["edge_mask"] = predicted_explanation["edge_mask"].float()
+
+def explanation_faithfulness(
+    graph_explainer: Union[Explainer, _BaseExplainer],
+    data: Data,
+    predicted_explanation: PyGExplanation,
+):
+    mask = "node_mask" if args.expl_type == "node" else "edge_mask"
+    predicted_explanation[mask] = predicted_explanation[mask].float()
     y = graph_explainer.get_prediction(data.x, data.edge_index)
-    y_masked = graph_explainer.get_masked_prediction(x = data.x, edge_index = data.edge_index, edge_mask = predicted_explanation["edge_mask"])
+    y_masked = graph_explainer.get_masked_prediction(
+        x=data.x, edge_index=data.edge_index, edge_mask=predicted_explanation[mask]
+    )
     y = torch.cat([1 - y, y])
     y_masked = torch.cat([1 - y_masked, y_masked])
-    
+
     # convert y_masked to a log probability
     y_masked = F.log_softmax(y_masked, dim=0)
-    
-    kl_div = F.kl_div(y_masked, y, reduction='batchmean')
+
+    kl_div = F.kl_div(y_masked, y, reduction="batchmean")
     # kl(p,q) p=log probs, q = prob
-    
+
     # kl_div = kl_divergence_distributions(y, y_masked)
     return torch.exp(-kl_div)
-    
+
 
 def explanation_accuracy(
     ground_truth_explanation: List[GraphXAIExplanation],
@@ -246,7 +275,10 @@ def explanation_accuracy(
     valid_explanations_count = 0
 
     for pred, gt_list in zip(predicted_explanation, ground_truth_explanation):
-        pred_edge_mask = pred["edge_mask"]  # thresholded explanation
+        if args.expl_type == "node":
+            pred_edge_mask = pred["node_mask"]
+        else:
+            pred_edge_mask = pred["edge_mask"]  # thresholded explanation
         best_gt_edge_mask = None
         max_gt_acc = 0
         max_gt_precision = 0
@@ -265,7 +297,10 @@ def explanation_accuracy(
         loop_flag = False  # flag to check if the below loop has been executed
         for i, gt in enumerate(gt_list):
             try:
-                gt_edge_mask = gt.edge_imp
+                if args.expl_type == "node":
+                    gt_edge_mask = gt.node_imp
+                else:
+                    gt_edge_mask = gt.edge_imp
 
                 if gt_edge_mask.sum().item() == 0:
                     continue
@@ -328,7 +363,7 @@ def explanation_accuracy(
         "jaccard": jaccard,
         "auc": auc,
     }
-    
+
 
 def visualise_explanation(
     pred_explanation: PyGExplanation,
@@ -382,17 +417,17 @@ def visualise_explanation(
 
 #### FOR CELL COMPLEXES ####
 def create_edge_mapping(graph):
-    edge_type = graph.edge_type # list of edge types for each edge
+    edge_type = graph.edge_type  # list of edge types for each edge
     # create a mapping {(min(u,v), max(u,v)): [edge_idx]}
     cells_to_connections = defaultdict(list)
     for i in range(len(graph.edge_index[0])):
         u, v = graph.edge_index[0][i].item(), graph.edge_index[1][i].item()
         cells_to_connections[(min(u, v), max(u, v))].append(i)
-    
+
     # convert to tuple mapping (min(u,v), max(u,v)): (edge_idx)
     for key in cells_to_connections.keys():
         cells_to_connections[key] = tuple(cells_to_connections[key])
-    
+
     def query_edges(node_idx):
         # get all edges of the form (node_idx, x) and (x, node_idx) where node_idx > x
         edges = []
@@ -403,7 +438,7 @@ def create_edge_mapping(graph):
                 edges.append((min(u, v), max(u, v)))
         edges = list(set(edges))
         return edges
-    
+
     # get node_type_1 to node_type_2 edges
     conn_1_2_to_conn_0_1 = []
     for i in range(len(edge_type)):
@@ -414,138 +449,242 @@ def create_edge_mapping(graph):
             u, v = mi, ma
             connections_0_1 = query_edges(u)
             for conn in connections_0_1:
-                conn_1_2_to_conn_0_1.append((cells_to_connections[u, v], cells_to_connections[conn]))
-    
+                conn_1_2_to_conn_0_1.append(
+                    (cells_to_connections[u, v], cells_to_connections[conn])
+                )
+
     conn_0_1_to_conn_0_0 = []
     for i in range(len(edge_type)):
         if edge_type[i] == 1 or edge_type[i] == 2:
             u, v = graph.edge_index[0][i].item(), graph.edge_index[1][i].item()
             edge_idx = max(u, v)
-            
+
             connections_0_1 = query_edges(edge_idx)
             x, y = connections_0_1[0][0], connections_0_1[1][0]
             edge_0_0 = (min(x, y), max(x, y))
 
             for conn in connections_0_1:
-                conn_0_1_to_conn_0_0.append((cells_to_connections[conn], cells_to_connections[edge_0_0]))
-    
+                conn_0_1_to_conn_0_0.append(
+                    (cells_to_connections[conn], cells_to_connections[edge_0_0])
+                )
+
     # pprint(conn_1_2_to_conn_0_1)
-    
+
     # construct conn_1_2_to_conn_0_0
     conn_1_2_to_conn_0_0 = []
     for i in range(len(conn_1_2_to_conn_0_1)):
         for j in range(len(conn_0_1_to_conn_0_0)):
             if conn_1_2_to_conn_0_1[i][1] == conn_0_1_to_conn_0_0[j][0]:
-                conn_1_2_to_conn_0_0.append((conn_1_2_to_conn_0_1[i][0], conn_0_1_to_conn_0_0[j][1]))
+                conn_1_2_to_conn_0_0.append(
+                    (conn_1_2_to_conn_0_1[i][0], conn_0_1_to_conn_0_0[j][1])
+                )
     conn_1_2_to_conn_0_0 = list(set(conn_1_2_to_conn_0_0))
     # pprint(conn_1_2_to_conn_0_0)
-    
+
     # [(1_2_edge_up, 1_2_edge_down), (0_1_edge_up, 0_1_edge_down)]
-    # = 
+    # =
     # [(1_2_edge_up, 0_1_edge_up), (1_2_edge_up, 0_1_edge_down), (1_2_edge_down, 0_1_edge_up), (1_2_edge_down, 0_1_edge_down)]
-    
+
     conn_1_2_to_conn_0_1_temp = []
     for conn_pair in conn_1_2_to_conn_0_1:
         edge_1_2_0 = conn_pair[0][0]
         edge_1_2_1 = conn_pair[0][1]
-        
+
         edge_0_1_0 = conn_pair[1][0]
         edge_0_1_1 = conn_pair[1][1]
-        
+
         conn_1_2_to_conn_0_1_temp.append((edge_1_2_0, edge_0_1_0))
         conn_1_2_to_conn_0_1_temp.append((edge_1_2_0, edge_0_1_1))
         conn_1_2_to_conn_0_1_temp.append((edge_1_2_1, edge_0_1_0))
         conn_1_2_to_conn_0_1_temp.append((edge_1_2_1, edge_0_1_1))
-    
+
     conn_1_2_to_conn_0_1 = conn_1_2_to_conn_0_1_temp
-    
+
     conn_0_1_to_conn_0_0_temp = []
     for conn_pair in conn_0_1_to_conn_0_0:
         edge_0_1_0 = conn_pair[0][0]
         edge_0_1_1 = conn_pair[0][1]
-        
+
         edge_0_0_0 = conn_pair[1][0]
         edge_0_0_1 = conn_pair[1][1]
-        
+
         conn_0_1_to_conn_0_0_temp.append((edge_0_1_0, edge_0_0_0))
         conn_0_1_to_conn_0_0_temp.append((edge_0_1_0, edge_0_0_1))
         conn_0_1_to_conn_0_0_temp.append((edge_0_1_1, edge_0_0_0))
         conn_0_1_to_conn_0_0_temp.append((edge_0_1_1, edge_0_0_1))
-    
+
     conn_0_1_to_conn_0_0 = conn_0_1_to_conn_0_0_temp
-    
+
     conn_1_2_to_conn_0_0_temp = []
     for conn_pair in conn_1_2_to_conn_0_0:
         edge_1_2_0 = conn_pair[0][0]
         edge_1_2_1 = conn_pair[0][1]
-        
+
         edge_0_0_0 = conn_pair[1][0]
         edge_0_0_1 = conn_pair[1][1]
-        
+
         conn_1_2_to_conn_0_0_temp.append((edge_1_2_0, edge_0_0_0))
         conn_1_2_to_conn_0_0_temp.append((edge_1_2_0, edge_0_0_1))
         conn_1_2_to_conn_0_0_temp.append((edge_1_2_1, edge_0_0_0))
         conn_1_2_to_conn_0_0_temp.append((edge_1_2_1, edge_0_0_1))
-        
+
     conn_1_2_to_conn_0_0 = conn_1_2_to_conn_0_0_temp
-    
+
     return {
-        'cycle_node_to_edge_node': conn_1_2_to_conn_0_1,
-        'edge_node_to_edge': conn_0_1_to_conn_0_0,
-        'cycle_node_to_edge': conn_1_2_to_conn_0_0
+        "cycle_node_to_edge_node": conn_1_2_to_conn_0_1,
+        "edge_node_to_edge": conn_0_1_to_conn_0_0,
+        "cycle_node_to_edge": conn_1_2_to_conn_0_0,
+    }
+
+
+def create_node_mapping(graph):
+    node_type = graph.node_type
+
+    # create a mapping {cycle_node: [edge_node]}, {edge_node: [og_node]}, {cycle_node: [og_node]}
+
+    cycle_node_to_edge_node = []
+    edge_node_to_og_node = []
+    cycle_node_to_og_node = []
+    
+    cache = set()
+
+    for i in range(len(graph.edge_index[0])):
+        u, v = graph.edge_index[0][i].item(), graph.edge_index[1][i].item()
+        mi, ma = min(u, v), max(u, v)
+        # check cache to avoid duplicate mappings
+        if (mi, ma) in cache:
+            continue
+        cache.add((mi, ma))
+
+        # get the node types
+        u_type, v_type = node_type[mi].item(), node_type[ma].item()
+    
+
+        if u_type == v_type:
+            continue  # we only care about node-to-edge_node or edge_node-to-og_node mappings
+
+        if u_type == 0 and v_type == 1:
+            og_node = u
+            edge_node = v
+            edge_node_to_og_node.append((edge_node, og_node))
+        elif u_type == 1 and v_type == 2:
+            edge_node = u
+            cycle_node = v
+            cycle_node_to_edge_node.append((cycle_node, edge_node))
+
+    # get common edge nodes to create cycle_node_to_og_node mapping
+    for edge in cycle_node_to_edge_node:
+        edge_node = edge[1]
+        for edge_pair in edge_node_to_og_node:
+            if edge_pair[0] == edge_node:
+                cycle_node_to_og_node.append((edge[0], edge_pair[1]))
+
+    return {
+        "cycle_node_to_edge_node": cycle_node_to_edge_node,
+        "edge_node_to_node": edge_node_to_og_node,
+        "cycle_node_to_node": cycle_node_to_og_node,
     }
 
 
 def hierarchical_prop(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
-    edge_mask = explanation["edge_mask"]
-    edge_type = graph.edge_type
+    if args.expl_type == "node":
+        node_mask = explanation["node_mask"]
+        node_type = graph.node_type
+        num_og_nodes = (node_type == 0).sum().item()
+        new_node_mask = torch.zeros(num_og_nodes)
+        new_node_mask = new_node_mask.to(device)
 
-    num_og_edges = (edge_type == 0).sum().item()
-    new_edge_mask = torch.zeros(num_og_edges)
-    new_edge_mask = new_edge_mask.to(device)
-    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
-    edge_node_to_edge = mappings['edge_node_to_edge']
-    
-    
-    for edge_pair in cycle_node_to_edge_node:
-        edge_1_2 = edge_pair[0]
-        edge_0_1 = edge_pair[1]
-        edge_mask[edge_0_1] += (edge_mask[edge_1_2] - 0.5) * alpha_c
-        
-    for edge_pair in edge_node_to_edge:
-        edge_0_1 = edge_pair[0]
-        edge_0_0 = edge_pair[1]
-        edge_mask[edge_0_0] += (edge_mask[edge_0_1] - 0.5) * alpha_e
-    
-    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
-    
-    return new_edge_mask
+        cycle_node_to_edge_node = mappings["cycle_node_to_edge_node"]
+        edge_node_to_node = mappings["edge_node_to_node"]
+
+        for node_pair in cycle_node_to_edge_node:
+            cycle_node = node_pair[0]
+            edge_node = node_pair[1]
+            node_mask[edge_node] += (node_mask[cycle_node] - 0.5) * alpha_c
+
+        for node_pair in edge_node_to_node:
+            edge_node = node_pair[0]
+            og_node = node_pair[1]
+            node_mask[og_node] += (node_mask[edge_node] - 0.5) * alpha_e
+
+        new_node_mask[:num_og_nodes] = node_mask[:num_og_nodes]
+
+        return new_node_mask
+    else:
+        edge_mask = explanation["edge_mask"]
+        edge_type = graph.edge_type
+
+        num_og_edges = (edge_type == 0).sum().item()
+        new_edge_mask = torch.zeros(num_og_edges)
+        new_edge_mask = new_edge_mask.to(device)
+        cycle_node_to_edge_node = mappings["cycle_node_to_edge_node"]
+        edge_node_to_edge = mappings["edge_node_to_edge"]
+
+        for edge_pair in cycle_node_to_edge_node:
+            edge_1_2 = edge_pair[0]
+            edge_0_1 = edge_pair[1]
+            edge_mask[edge_0_1] += (edge_mask[edge_1_2] - 0.5) * alpha_c
+
+        for edge_pair in edge_node_to_edge:
+            edge_0_1 = edge_pair[0]
+            edge_0_0 = edge_pair[1]
+            edge_mask[edge_0_0] += (edge_mask[edge_0_1] - 0.5) * alpha_e
+
+        new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
+
+        return new_edge_mask
+
 
 def direct_prop(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
-    edge_mask = explanation["edge_mask"]
-    edge_type = graph.edge_type
+    if args.expl_type == "node":
+        node_mask = explanation["node_mask"]
+        node_type = graph.node_type
+        num_og_nodes = (node_type == 0).sum().item()
+        new_node_mask = torch.zeros(num_og_nodes)
+        new_node_mask = new_node_mask.to(device)
 
-    num_og_edges = (edge_type == 0).sum().item()
-    new_edge_mask = torch.zeros(num_og_edges)
-    new_edge_mask = new_edge_mask.to(device)
-    
-    cycle_node_to_edge = mappings['cycle_node_to_edge']
-    edge_node_to_edge = mappings['edge_node_to_edge']
-    
-    
-    for edge_pair in cycle_node_to_edge:
-        edge_1_2 = edge_pair[0]
-        edge_0_0 = edge_pair[1]
-        edge_mask[edge_0_0] += (edge_mask[edge_1_2] - 0.5) * alpha_c
-        
-    for edge_pair in edge_node_to_edge:
-        edge_0_1 = edge_pair[0]
-        edge_0_0 = edge_pair[1]
-        edge_mask[edge_0_0] += (edge_mask[edge_0_1] - 0.5) * alpha_e
-    
-    new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
-    
-    return new_edge_mask
+        cycle_node_to_node = mappings["cycle_node_to_node"]
+        edge_node_to_node = mappings["edge_node_to_node"]
+
+        for node_pair in cycle_node_to_node:
+            cycle_node = node_pair[0]
+            og_node = node_pair[1]
+            node_mask[og_node] += (node_mask[cycle_node] - 0.5) * alpha_c
+
+        for node_pair in edge_node_to_node:
+            edge_node = node_pair[0]
+            og_node = node_pair[1]
+            node_mask[og_node] += (node_mask[edge_node] - 0.5) * alpha_e
+
+        new_node_mask[:num_og_nodes] = node_mask[:num_og_nodes]
+
+        return new_node_mask
+
+    else:
+        edge_mask = explanation["edge_mask"]
+        edge_type = graph.edge_type
+
+        num_og_edges = (edge_type == 0).sum().item()
+        new_edge_mask = torch.zeros(num_og_edges)
+        new_edge_mask = new_edge_mask.to(device)
+
+        cycle_node_to_edge = mappings["cycle_node_to_edge"]
+        edge_node_to_edge = mappings["edge_node_to_edge"]
+
+        for edge_pair in cycle_node_to_edge:
+            edge_1_2 = edge_pair[0]
+            edge_0_0 = edge_pair[1]
+            edge_mask[edge_0_0] += (edge_mask[edge_1_2] - 0.5) * alpha_c
+
+        for edge_pair in edge_node_to_edge:
+            edge_0_1 = edge_pair[0]
+            edge_0_0 = edge_pair[1]
+            edge_mask[edge_0_0] += (edge_mask[edge_0_1] - 0.5) * alpha_e
+
+        new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
+
+        return new_edge_mask
+
 
 def probabilistic_propagation(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
     edge_mask = explanation["edge_mask"]
@@ -554,9 +693,8 @@ def probabilistic_propagation(graph, explanation, mappings, alpha_c=1.0, alpha_e
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
 
-
-    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
-    edge_node_to_edge = mappings['edge_node_to_edge']
+    cycle_node_to_edge_node = mappings["cycle_node_to_edge_node"]
+    edge_node_to_edge = mappings["edge_node_to_edge"]
 
     for edge_pair in cycle_node_to_edge_node:
         edge_1_2, edge_0_1 = edge_pair
@@ -571,17 +709,19 @@ def probabilistic_propagation(graph, explanation, mappings, alpha_c=1.0, alpha_e
     new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
     return new_edge_mask
 
-def random_noise_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0, noise_level=0.05):
+
+def random_noise_propagation(
+    graph, explanation, alpha_c=1.0, alpha_e=1.0, noise_level=0.05
+):
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
-    
 
     mappings = create_edge_mapping(graph)
-    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
-    edge_node_to_edge = mappings['edge_node_to_edge']
+    cycle_node_to_edge_node = mappings["cycle_node_to_edge_node"]
+    edge_node_to_edge = mappings["edge_node_to_edge"]
 
     for edge_pair in cycle_node_to_edge_node:
         edge_1_2, edge_0_1 = edge_pair
@@ -596,15 +736,42 @@ def random_noise_propagation(graph, explanation, alpha_c=1.0, alpha_e=1.0, noise
     new_edge_mask[:num_og_edges] = edge_mask[:num_og_edges]
     return new_edge_mask
 
-def nonlinear_activation_propagation(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
+
+def nonlinear_activation_propagation(
+    graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0
+):
+    if args.expl_type == "node":
+        node_mask = explanation["node_mask"]
+        node_type = graph.node_type
+        num_og_nodes = (node_type == 0).sum().item()
+        new_node_mask = torch.zeros(num_og_nodes)
+        new_node_mask = new_node_mask.to(device)
+
+        cycle_node_to_node = mappings["cycle_node_to_node"]
+        edge_node_to_node = mappings["edge_node_to_node"]
+
+        for node_pair in cycle_node_to_node:
+            cycle_node = node_pair[0]
+            og_node = node_pair[1]
+            node_mask[og_node] += torch.tanh((node_mask[cycle_node] - 0.5) * alpha_c)
+
+        for node_pair in edge_node_to_node:
+            edge_node = node_pair[0]
+            og_node = node_pair[1]
+            node_mask[og_node] += torch.tanh((node_mask[edge_node] - 0.5) * alpha_e)
+
+        new_node_mask[:num_og_nodes] = node_mask[:num_og_nodes]
+
+        return new_node_mask
+    
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
 
-    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
-    edge_node_to_edge = mappings['edge_node_to_edge']
+    cycle_node_to_edge_node = mappings["cycle_node_to_edge_node"]
+    edge_node_to_edge = mappings["edge_node_to_edge"]
 
     for edge_pair in cycle_node_to_edge_node:
         edge_1_2, edge_0_1 = edge_pair
@@ -619,14 +786,40 @@ def nonlinear_activation_propagation(graph, explanation, mappings, alpha_c=1.0, 
 
 
 def entropy_based_propagation(graph, explanation, mappings, alpha_c=1.0, alpha_e=1.0):
+    if args.expl_type == "node":
+        node_mask = explanation["node_mask"]
+        node_type = graph.node_type
+        num_og_nodes = (node_type == 0).sum().item()
+        new_node_mask = torch.zeros(num_og_nodes)
+        new_node_mask = new_node_mask.to(device)
+
+        cycle_node_to_edge_node = mappings["cycle_node_to_edge_node"]
+        edge_node_to_node = mappings["edge_node_to_node"]
+
+        for node_pair in cycle_node_to_edge_node:
+            cycle_node = node_pair[0]
+            edge_node = node_pair[1]
+            entropy = -node_mask[cycle_node] * torch.log(node_mask[cycle_node] + 1e-9)
+            node_mask[edge_node] += (entropy - 0.5) * alpha_c
+
+        for node_pair in edge_node_to_node:
+            edge_node = node_pair[0]
+            og_node = node_pair[1]
+            entropy = -node_mask[edge_node] * torch.log(node_mask[edge_node] + 1e-9)
+            node_mask[og_node] += (entropy - 0.5) * alpha_e
+
+        new_node_mask[:num_og_nodes] = node_mask[:num_og_nodes]
+
+        return new_node_mask
+    
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
     num_og_edges = (edge_type == 0).sum().item()
     new_edge_mask = torch.zeros(num_og_edges)
     new_edge_mask = new_edge_mask.to(device)
 
-    cycle_node_to_edge_node = mappings['cycle_node_to_edge_node']
-    edge_node_to_edge = mappings['edge_node_to_edge']
+    cycle_node_to_edge_node = mappings["cycle_node_to_edge_node"]
+    edge_node_to_edge = mappings["edge_node_to_edge"]
 
     for edge_pair in cycle_node_to_edge_node:
         edge_1_2, edge_0_1 = edge_pair
@@ -648,7 +841,11 @@ def norm(x):
 
 
 def explain_cell_complex_dataset(
-    explainer: Union[Explainer, _BaseExplainer], dataset: ComplexDataset, num=50, correct_mask=None, graph_explainer=None
+    explainer: Union[Explainer, _BaseExplainer],
+    dataset: ComplexDataset,
+    num=50,
+    correct_mask=None,
+    graph_explainer=None,
 ):
     """
     Explains the dataset using the explainer. We only explain a fraction of the dataset, as the explainer can be slow.
@@ -662,15 +859,15 @@ def explain_cell_complex_dataset(
     for i, index in enumerate(tqdm(dataset.test_index)):
         if count >= num:
             break
-        
+
         if not correct_mask[i]:
             continue
-        
+
         data, gt_explanation, _ = dataset[index]
-        
+
         if len(gt_explanation) == 0:
             continue
-        
+
         zero_flag = True
         for gt in gt_explanation:
             if gt.edge_imp.sum().item() != 0:
@@ -678,56 +875,80 @@ def explain_cell_complex_dataset(
 
         if zero_flag:
             continue
-        
+
         data = data.to(device)
-        
+
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
         pred = get_graph_level_explanation(explainer, data)
-        
-        edge_mask = None    
-        
+
+        edge_mask = None
+
         if args.prop_strategy == "hp_tuning":
             info_prop_methods = []
             mappings = create_edge_mapping(data)
-            for prop_method in tqdm(["direct_prop", "hierarchical_prop", "nonlinear_activation_propagation", "entropy_based_propagation"]):
+            for prop_method in tqdm(
+                [
+                    "direct_prop",
+                    "hierarchical_prop",
+                    "nonlinear_activation_propagation",
+                    "entropy_based_propagation",
+                ]
+            ):
                 for a_c in [0, 0.5, 1.0, 1.5]:
                     for a_e in [0, 0.5, 1.0, 1.5]:
-                        edge_mask = norm(globals()[prop_method](data, pred, mappings, alpha_c=a_c, alpha_e=a_e))
+                        edge_mask = norm(
+                            globals()[prop_method](
+                                data, pred, mappings, alpha_c=a_c, alpha_e=a_e
+                            )
+                        )
                         edge_mask = (edge_mask >= 0.5).float()
                         info_prop_methods.append(
                             {
                                 "prop_method": prop_method,
                                 "alpha_c": a_c,
                                 "alpha_e": a_e,
-                                "edge_mask": edge_mask
+                                "edge_mask": edge_mask,
                             }
                         )
             pred_explanations.append(info_prop_methods)
             ground_truth_explanations.append(gt_explanation)
         else:
+            mappings = create_edge_mapping(data) if args.expl_type == "edge" else create_node_mapping(data)
             if args.prop_strategy == "direct_prop":
                 edge_mask = norm(
-                    direct_prop(data, pred, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+                    direct_prop(
+                        data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                    )
                 )
             elif args.prop_strategy == "hierarchical_prop":
                 edge_mask = norm(
-                    hierarchical_prop(data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e)
+                    hierarchical_prop(
+                        data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                    )
                 )
             else:
                 raise NotImplementedError(
                     f"Propagation strategy {args.prop_strategy} is not implemented."
                 )
-
+                
+            mask = "node_mask" if args.expl_type == "node" else "edge_mask"
             if args.explanation_aggregation == "topk":
                 k = int(0.25 * len(edge_mask))
                 # take top k edges as 1 and rest as 0
-                pred["edge_mask"] = (edge_mask >= edge_mask.topk(k).values.min()).float()
+                pred[mask] = (
+                    edge_mask >= edge_mask.topk(k).values.min()
+                ).float()
             elif args.explanation_aggregation == "threshold":
-                pred["edge_mask"] = (edge_mask >= 0.5).float()
+                pred[mask] = (edge_mask >= 0.5).float()
             if graph_explainer is not None:
-                faithfulness = explanation_faithfulness(graph_explainer, dataset.get_underlying_graph(index).to(device), pred)
-                f.append(faithfulness)
+                faithfulness = explanation_faithfulness(
+                    graph_explainer,
+                    dataset.get_underlying_graph(index).to(device),
+                    pred,
+                )
+                f.append(faithfulness)     
+        
             pred_explanations.append(pred)
             ground_truth_explanations.append(gt_explanation)
         count += 1
@@ -741,10 +962,16 @@ def explain_cell_complex_dataset(
 
 
 def explain_dataset(
-    explainer: Explainer, dataset: Union[GraphDataset, ComplexDataset], num=50, correct_mask=None,graph_explainer=None
+    explainer: Explainer,
+    dataset: Union[GraphDataset, ComplexDataset],
+    num=50,
+    correct_mask=None,
+    graph_explainer=None,
 ):
     if isinstance(dataset, ComplexDataset):
-        return explain_cell_complex_dataset(explainer, dataset, num, correct_mask, graph_explainer=graph_explainer)
+        return explain_cell_complex_dataset(
+            explainer, dataset, num, correct_mask, graph_explainer=graph_explainer
+        )
     elif isinstance(dataset, GraphDataset):
         return explain_graph_dataset(explainer, dataset, num, correct_mask)
 
@@ -811,9 +1038,7 @@ def explain_nodes_complex(
             edge_index=data.edge_index,
         )
         edge_index = remove_extra_edges(type_0_nodes, edge_index)
-        std_edge_mask = (
-            direct_prop(data, expl, mapping) / 3.5
-        ).tanh()
+        std_edge_mask = (direct_prop(data, expl, mapping) / 3.5).tanh()
 
         pred_edge_mask = []
         for j in range(len(std_edge_mask)):

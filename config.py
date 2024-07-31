@@ -69,6 +69,13 @@ def load_args():
         help="The hidden dimension of the model",
     )
     parser.add_argument(
+        '--expl_type',
+        type=str,
+        default='edge',
+        help='The type of explanation mask to generate',
+        choices=['edge', 'node']
+    )
+    parser.add_argument(
         "--explanation_algorithm",
         type=str,
         default="GNNExplainer",

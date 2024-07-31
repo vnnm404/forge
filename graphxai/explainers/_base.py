@@ -135,7 +135,8 @@ class _BaseExplainer:
             if return_type == "label":
                 out = out.argmax(dim=-1)
             elif return_type == "prob":
-                out = F.softmax(out, dim=-1)
+                # out = F.softmax(out, dim=-1)
+                pass
             elif return_type == "log_prob":
                 out = F.log_softmax(out, dim=-1)
             else:

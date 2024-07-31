@@ -232,73 +232,73 @@ def graph_classification():
         save_metrics(graph_metrics, args.exp_name, "graph")
 
     ######### CELL COMPLEX ##########################
-    # complex_metrics = {}
-    # print("Running complex setup")
-    # for seed in tqdm(range(args.start_seed, args.end_seed), desc="Complex Setup Seed:"):
-    #     args.current_seed = seed
+    complex_metrics = {}
+    print("Running complex setup")
+    for seed in tqdm(range(args.start_seed, args.end_seed), desc="Complex Setup Seed:"):
+        args.current_seed = seed
 
-    #     complex_dataset, train_loader, test_loader = load_complex_data(seed=seed)
+        complex_dataset, train_loader, test_loader = load_complex_data(seed=seed)
 
-    #     model, complex_correct_mask = setup_model(
-    #         train_loader=train_loader, test_loader=test_loader, type="complexes"
-    #     )
-    #     complex_pred_explanations, _, metrics, _ = explain(
-    #         model=model, dataset=complex_dataset, correct_mask=complex_correct_mask, # graph_explainer=explainers[seed]
-    #     )
+        model, complex_correct_mask = setup_model(
+            train_loader=train_loader, test_loader=test_loader, type="complexes"
+        )
+        complex_pred_explanations, _, metrics, _ = explain(
+            model=model, dataset=complex_dataset, correct_mask=complex_correct_mask, # graph_explainer=explainers[seed]
+        )
 
-    #     # if args.test_complex_train_graph_dataset:
-    #     #     print(
-    #     #         "Testing explainer with model trained on complexes, and providing graph dataset."
-    #     #     )
-    #     #     explain(
-    #     #         model=model,
-    #     #         dataset=dataset,
-    #     #     )
+        if args.test_complex_train_graph_dataset:
+            print(
+                "Testing explainer with model trained on complexes, and providing graph dataset."
+            )
+            explain(
+                model=model,
+                dataset=dataset,
+            )
 
-    #     # if args.visualise:
-    #     #     visualise_explanation(
-    #     #         complex_pred_explanations[1], ground_truth_explanations[1]
-    #     # )
+        if args.visualise:
+            visualise_explanation(
+                complex_pred_explanations[1], ground_truth_explanations[1]
+        )
 
-    #     complex_metrics[seed] = metrics
+        complex_metrics[seed] = metrics
 
-    #     # if args.save_explanation_graphml:
-    #     #     save_graphml(dataset, complex_pred_explanations, "complexes")
+        if args.save_explanation_graphml:
+            save_graphml(dataset, complex_pred_explanations, "complexes")
 
-    #     ######### SAVE GROUND TRUTH ##########################
-    #     # if args.save_explanation_graphml:
-    #     #     save_graphml(dataset, ground_truth_explanations, "gt", is_gt=True)
+        ######## SAVE GROUND TRUTH ##########################
+        if args.save_explanation_graphml:
+            save_graphml(dataset, ground_truth_explanations, "gt", is_gt=True)
 
-    # # get best seed based on jaccard score
-    # best_seed = max(complex_metrics, key=complex_metrics.get("jaccard"))
-    # best_metrics = complex_metrics[best_seed]
-    # print(f"Best seed for complex explanations: {best_seed}")
-    # print(f"Best metrics for complex explanations: ")
-    # pprint(best_metrics)
+    # get best seed based on jaccard score
+    best_seed = max(complex_metrics, key=complex_metrics.get("jaccard"))
+    best_metrics = complex_metrics[best_seed]
+    print(f"Best seed for complex explanations: {best_seed}")
+    print(f"Best metrics for complex explanations: ")
+    pprint(best_metrics)
 
-    # if args.save_explanation_dir:
-    #     if args.prop_strategy == "hp_tuning":
-    #         save_metrics(complex_metrics, args.exp_name, "complexes")
-    #     else:
-    #         # sort metrics by jaccard score
-    #         complex_metrics = dict(
-    #             sorted(complex_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
-    #         )
+    if args.save_explanation_dir:
+        if args.prop_strategy == "hp_tuning":
+            save_metrics(complex_metrics, args.exp_name, "complexes")
+        else:
+            # sort metrics by jaccard score
+            complex_metrics = dict(
+                sorted(complex_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
+            )
 
-    #         # average metrics
-    #         avg_metrics = {}
-    #         for key in complex_metrics[seed].keys():
-    #             avg_metrics[key] = sum([x[key] for x in complex_metrics.values()]) / len(
-    #                 complex_metrics
-    #             )
+            # average metrics
+            avg_metrics = {}
+            for key in complex_metrics[seed].keys():
+                avg_metrics[key] = sum([x[key] for x in complex_metrics.values()]) / len(
+                    complex_metrics
+                )
 
-    #         complex_metrics["average"] = avg_metrics
+            complex_metrics["average"] = avg_metrics
 
-    #         # std dev metrics
-    #         std_metrics = {}
-    #         for key in complex_metrics[seed].keys():
-    #             std_metrics[key] = np.std([x[key] for x in complex_metrics.values()])
+            # std dev metrics
+            std_metrics = {}
+            for key in complex_metrics[seed].keys():
+                std_metrics[key] = np.std([x[key] for x in complex_metrics.values()])
 
-    #         complex_metrics["std_dev"] = std_metrics
+            complex_metrics["std_dev"] = std_metrics
 
-    #         save_metrics(complex_metrics, args.exp_name, "complexes")
+            save_metrics(complex_metrics, args.exp_name, "complexes")

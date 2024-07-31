@@ -18,7 +18,7 @@ from tqdm import tqdm
 from torch_geometric.explain import Explanation as PyGExplanation
 from data import ComplexDataset
 from graphxai.utils.explanation import Explanation as GraphXAIExplanation
-from graphxai.explainers import SubgraphX, PGExplainer, GNN_LRP, RandomExplainer
+from graphxai.explainers import SubgraphX, PGExplainer, GNN_LRP, RandomExplainer, GradExplainer, GuidedBP
 from graphxai.explainers._base import _BaseExplainer
 from graphxai.datasets.dataset import GraphDataset, NodeDataset
 from sklearn.metrics import (
@@ -55,8 +55,12 @@ def get_explanation_algorithm(name):
         return SubgraphX
     elif name == "GNN_LRP":
         return GNN_LRP
+    elif name == "GradExplainer":
+        return GradExplainer
     elif name == "Random":
         return RandomExplainer
+    elif name == "GuidedBP":
+        return GuidedBP
     raise NotImplementedError(f"Explanation algorithm {name} is not implemented.")
 
 
@@ -99,6 +103,10 @@ def initialise_explainer(
                 return_type="probs",
             ),
         )
+    elif explanation_algorithm_name == "GradExplainer":
+        return GradExplainer(model=model, criterion=F.binary_cross_entropy)
+    elif explanation_algorithm_name == "GuidedBP":
+        return GuidedBP(model=model)
     elif explanation_algorithm_name == "GNN_LRP":
         return GNN_LRP(model=model)
     elif explanation_algorithm_name == "Random":
@@ -130,11 +138,17 @@ def get_graph_level_explanation(
     explainer: Union[Explainer, PGMExplainer, SubgraphX], data: Data
 ):
     pred = None
-    if args.explanation_algorithm not in ["SubgraphX", "GNN_LRP", "Random"]:
+    if args.explanation_algorithm not in ["SubgraphX", "GNN_LRP", "Random", "GradExplainer", "GuidedBP"]:
         pred = explainer(data.x, edge_index=data.edge_index)
-    elif args.explanation_algorithm in ["SubgraphX", "GNN_LRP", "Random"]:
+    elif args.explanation_algorithm in ["GradExplainer"]:
         pred = explainer.get_explanation_graph(
-            data.x, data.edge_index, forward_kwargs={"batch": data.batch}
+            data.x, data.edge_index, forward_kwargs={"batch": data.batch}, label=data.y
+        )
+        pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
+    elif args.explanation_algorithm in ["SubgraphX", "GNN_LRP", "Random", "GuidedBP"]:
+        print("HERE")
+        pred = explainer.get_explanation_graph(
+            data.x, data.y, data.edge_index, forward_kwargs={"batch": data.batch}
         )
         pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
     return pred

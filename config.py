@@ -86,7 +86,9 @@ def load_args():
             "AttentionExplainer",
             "GraphMaskExplainer",
             "GNN_LRP",
-            "Random"
+            "Random",
+            "GradExplainer",
+            "GuidedBP"
         ],
     )
     parser.add_argument(

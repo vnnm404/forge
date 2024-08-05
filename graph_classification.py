@@ -100,9 +100,8 @@ def explain(model, dataset, correct_mask, graph_explainer=None):
     if args.prop_strategy == "hp_tuning":
         metrics = []
         for j in range(len(pred_explanations[0])):
-            edge_masks = [pred_explanations[i][j]["edge_mask"] for i in range(len(pred_explanations))]
-
-            pred_expls = [Explanation(edge_mask=edge_mask) for edge_mask in edge_masks]
+            masks = [(pred_explanations[i][j]["edge_mask"], pred_explanations[i][j]["node_mask"]) for i in range(len(pred_explanations))]
+            pred_expls = [Explanation(edge_mask=edge_mask, node_mask=node_mask) for edge_mask, node_mask in masks]
 
             metric = explanation_accuracy(
                 ground_truth_explanations, pred_expls
@@ -114,6 +113,7 @@ def explain(model, dataset, correct_mask, graph_explainer=None):
             metrics.append(metric)
             
         metrics = sorted(metrics, key=lambda x: x["jaccard"], reverse=True)
+        print(metrics)
         return pred_explanations, ground_truth_explanations, metrics, explainer
                 
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)

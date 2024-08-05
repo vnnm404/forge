@@ -116,20 +116,24 @@ def initialise_explainer(
 
 
 def get_graph_level_explanation(
-    explainer: Union[Explainer, PGMExplainer, SubgraphX], data: Data
+    explainer: Union[Explainer, _BaseExplainer], data: Data
 ):
     pred = None
-    if args.explanation_algorithm not in ["SubgraphX", "GNN_LRP", "Random", "GradExplainer", "GuidedBP"]:
+    if args.explanation_algorithm not in ["PGMExplainer", "GNN_LRP", "Random", "GradExplainer", "GuidedBP"]:
         pred = explainer(data.x, edge_index=data.edge_index)
     elif args.explanation_algorithm in ["GradExplainer"]:
         pred = explainer.get_explanation_graph(
             data.x, data.edge_index, forward_kwargs={"batch": data.batch}, label=data.y
         )
         pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
-    elif args.explanation_algorithm in ["SubgraphX", "GNN_LRP", "Random", "GuidedBP"]:
-        print("HERE")
+    elif args.explanation_algorithm in ["GNN_LRP", "GuidedBP"]:
         pred = explainer.get_explanation_graph(
-            data.x, data.y, data.edge_index, forward_kwargs={"batch": data.batch}
+            x=data.x, label=data.y, edge_index=data.edge_index, forward_kwargs={"batch": data.batch}
+        )
+        pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
+    elif args.explanation_algorithm in ["Random", "PGMExplainer"]:
+        pred = explainer.get_explanation_graph(
+            x=data.x, edge_index=data.edge_index, forward_kwargs={"batch": data.batch}
         )
         pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
     return pred
@@ -881,7 +885,7 @@ def explain_cell_complex_dataset(
 
         if args.prop_strategy == "hp_tuning":
             info_prop_methods = []
-            mappings = create_edge_mapping(data)
+            mappings = create_edge_mapping(data) if args.expl_type == "edge" else create_node_mapping(data)
             for prop_method in tqdm(
                 [
                     "direct_prop",
@@ -892,18 +896,26 @@ def explain_cell_complex_dataset(
             ):
                 for a_c in [0, 0.5, 1.0, 1.5]:
                     for a_e in [0, 0.5, 1.0, 1.5]:
+                        node_mask = None
                         edge_mask = norm(
                             globals()[prop_method](
                                 data, pred, mappings, alpha_c=a_c, alpha_e=a_e
                             )
                         )
                         edge_mask = (edge_mask >= 0.5).float()
+                        if args.expl_type == "node":
+                            node_mask = edge_mask
+                            edge_mask = None
+                        elif args.expl_type == "edge":
+                            node_mask = None
+                        
                         info_prop_methods.append(
                             {
                                 "prop_method": prop_method,
                                 "alpha_c": a_c,
                                 "alpha_e": a_e,
                                 "edge_mask": edge_mask,
+                                "node_mask": node_mask,
                             }
                         )
             pred_explanations.append(info_prop_methods)

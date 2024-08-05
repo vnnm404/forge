@@ -4,7 +4,7 @@
 python3 main.py \
     --dataset AlkaneCarbonyl \
     --model GCN \
-    --in_dim 16 \
+    --in_dim 14 \
     --hidden_dim 64 \
     --out_dim 1 \
     --explanation_algorithm GuidedBP \

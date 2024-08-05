@@ -2,20 +2,19 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    --dataset FluorideCarbonyl \
+    --dataset Synth_house_wheel \
     --model GCN \
-    --in_dim 14 \
+    --synth_shape_1 house \
+    --synth_shape_2 wheel \
+    --in_dim 16 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --expl_type node \
-    --explanation_algorithm SubgraphX \
+    --explanation_algorithm GuidedBP \
     --graph_epochs 50 \
     --complex_epochs 50 \
     --explanation_epochs 100 \
     --save_explanation_dir explanations/ \
     --num_explanations 100 \
     --prop_strategy hp_tuning \
-    --alpha_c 1.0 \
-    --alpha_e 1.0 \
     --start_seed 0 \
     --end_seed 10

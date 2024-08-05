@@ -2,12 +2,13 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    --dataset FluorideCarbonyl \
-    --model GAT \
+    --dataset Benzene \
+    --model GCN \
     --in_dim 14 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --explanation_algorithm AttentionExplainer \
+    --expl_type node \
+    --explanation_algorithm PGMExplainer \
     --graph_epochs 50 \
     --complex_epochs 50 \
     --explanation_epochs 100 \

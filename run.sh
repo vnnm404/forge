@@ -1,3 +1,2 @@
-sh experiments/graph_classification/alkane_carbonyl/alkane_carbonyl_gcn_gnn_explainer.sh
-sh experiments/graph_classification/alkane_carbonyl/alkane_carbonyl_gcn_gmexplainer.sh
-sh experiments/graph_classification/alkane_carbonyl/alkane_carbonyl_gat_attn_explainer.sh
+sh experiments/graph_classification/synthetic/bull_X_4_cycle/synth_bull_4_cycle_gcn_gmexplainer.sh
+sh experiments/graph_classification/synthetic/bull_X_4_cycle/synth_bull_4_cycle_gcn_gnn_explainer.sh

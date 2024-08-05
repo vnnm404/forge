@@ -73,22 +73,7 @@ def initialise_explainer(
     node_mask_type=None,
     edge_mask_type="object",
 ):
-    if explanation_algorithm_name == "AttentionExplainer":
-        return Explainer(
-            model=model,
-            explanation_type=("model"),
-            algorithm=get_explanation_algorithm(explanation_algorithm_name)().to(
-                device
-            ),
-            node_mask_type=node_mask_type,
-            edge_mask_type=edge_mask_type,
-            model_config=dict(
-                mode=task,
-                task_level=args.task_level,
-                return_type="probs",
-            ),
-        )
-    elif explanation_algorithm_name == "GraphMaskExplainer":
+    if explanation_algorithm_name == "GraphMaskExplainer":
         return Explainer(
             model=model,
             explanation_type=("model"),
@@ -111,7 +96,9 @@ def initialise_explainer(
         return GNN_LRP(model=model)
     elif explanation_algorithm_name == "Random":
         return RandomExplainer(model=model)
-    elif explanation_algorithm_name != "SubgraphX":
+    elif explanation_algorithm_name == "PGMExplainer":
+        return PGMExplainer(model=model, explain_graph=True, perturb_mode="mean")
+    else:
         return Explainer(
             model=model,
             explanation_type=("model"),
@@ -126,12 +113,6 @@ def initialise_explainer(
                 return_type="probs",
             ),
         )
-    elif explanation_algorithm_name == "SubgraphX":
-        # return SubgraphX(
-        #     model=model,
-        #     num_hops=2 if args.task_level == "node" else None,
-        # )
-        return PGMExplainer(model=model, explain_graph=True, perturb_mode="mean")
 
 
 def get_graph_level_explanation(

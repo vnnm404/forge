@@ -2,8 +2,7 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    --expl_type node \
-    --dataset Benzene \
+    --dataset FluorideCarbonyl \
     --model GCN \
     --in_dim 14 \
     --hidden_dim 64 \
@@ -14,6 +13,6 @@ python3 main.py \
     --explanation_epochs 100 \
     --save_explanation_dir explanations/ \
     --num_explanations 100 \
-    --prop_strategy direct_prop \
+    --prop_strategy hp_tuning \
     --start_seed 0 \
-    --end_seed 1
+    --end_seed 10

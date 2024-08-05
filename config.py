@@ -21,7 +21,8 @@ def load_args():
             "Synth_house_wheel",
             "Synth_wheel_cube",
             "Synth_cycle_6_house",
-            "Synth_cycle_4_star"
+            "Synth_cycle_4_star",
+            "Synth_bull_4_cycle"
         ],
     )
     parser.add_argument(
@@ -36,6 +37,7 @@ def load_args():
         type=str,
         default='star',
         help='The shape of the second class in the synthetic dataset',
+        choices=['cycle_4', 'cycle_5', 'cycle_6', 'cycle_8', 'wheel', 'house', 'cube', 'peterson', 'house_x', 'star', 'bull']
     )
     parser.add_argument(
         "--model",
@@ -82,10 +84,8 @@ def load_args():
         help="The explanation algorithm to use",
         choices=[
             "GNNExplainer",
-            "SubgraphX",
-            "AttentionExplainer",
             "GraphMaskExplainer",
-            "GNN_LRP",
+            "PGMExplainer",
             "Random",
             "GradExplainer",
             "GuidedBP"

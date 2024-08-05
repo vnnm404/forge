@@ -2,12 +2,14 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    --dataset AlkaneCarbonyl \
-    --model GAT \
-    --in_dim 14 \
+    --dataset Synth_wheel_cube \
+    --model GCN \
+    --synth_shape_1 wheel \
+    --synth_shape_2 cube \
+    --in_dim 16 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --explanation_algorithm AttentionExplainer \
+    --explanation_algorithm Random \
     --graph_epochs 50 \
     --complex_epochs 50 \
     --explanation_epochs 100 \

@@ -19,6 +19,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+running_type = "graph"
 
 def load_graph_data(seed):
     print("Loading dataset...")
@@ -96,24 +97,24 @@ def explain(model, dataset, correct_mask, graph_explainer=None):
         explainer, dataset, num=args.num_explanations, correct_mask=correct_mask, graph_explainer=graph_explainer
     )
     
-    # if args.prop_strategy == "hp_tuning":
-    #     metrics = []
-    #     for j in range(len(pred_explanations[0])):
-    #         edge_masks = [pred_explanations[i][j]["edge_mask"] for i in range(len(pred_explanations))]
+    if args.prop_strategy == "hp_tuning":
+        metrics = []
+        for j in range(len(pred_explanations[0])):
+            edge_masks = [pred_explanations[i][j]["edge_mask"] for i in range(len(pred_explanations))]
 
-    #         pred_expls = [Explanation(edge_mask=edge_mask) for edge_mask in edge_masks]
+            pred_expls = [Explanation(edge_mask=edge_mask) for edge_mask in edge_masks]
 
-    #         metric = explanation_accuracy(
-    #             ground_truth_explanations, pred_expls
-    #         )
-    #         metric["prop_method"] = pred_explanations[0][j]["prop_method"]
-    #         metric["alpha_c"] = pred_explanations[0][j]["alpha_c"]
-    #         metric["alpha_e"] = pred_explanations[0][j]["alpha_e"]
+            metric = explanation_accuracy(
+                ground_truth_explanations, pred_expls
+            )
+            metric["prop_method"] = pred_explanations[0][j]["prop_method"]
+            metric["alpha_c"] = pred_explanations[0][j]["alpha_c"]
+            metric["alpha_e"] = pred_explanations[0][j]["alpha_e"]
             
-    #         metrics.append(metric)
+            metrics.append(metric)
             
-    #     metrics = sorted(metrics, key=lambda x: x["jaccard"], reverse=True)
-    #     return pred_explanations, ground_truth_explanations, metrics, explainer
+        metrics = sorted(metrics, key=lambda x: x["jaccard"], reverse=True)
+        return pred_explanations, ground_truth_explanations, metrics, explainer
                 
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
     metrics["faithfulness"] = faithfulness
@@ -153,87 +154,88 @@ def save_graphml(dataset, explanation, type, is_gt=False):
 
 def graph_classification():
     ########### GRAPH ############################
-    print("Running graph setup")
-    graph_metrics = {}
-    explainers = {}
-    for seed in tqdm(range(args.start_seed, args.end_seed), desc="Graph Setup Seed: "):
-        args.current_seed = seed
+    # print("Running graph setup")
+    # graph_metrics = {}
+    # explainers = {}
+    # for seed in tqdm(range(args.start_seed, args.end_seed), desc="Graph Setup Seed: "):
+    #     args.current_seed = seed
 
-        dataset, train_loader, test_loader = load_graph_data(seed=seed)
+    #     dataset, train_loader, test_loader = load_graph_data(seed=seed)
 
-        graph_model, graph_correct_mask = setup_model(
-            train_loader=train_loader, test_loader=test_loader, type="graphs"
-        )
-        graph_pred_explanations, ground_truth_explanations, metrics, explainer = explain(
-            model=graph_model,
-            dataset=dataset,
-            correct_mask=graph_correct_mask,
-        )
+    #     graph_model, graph_correct_mask = setup_model(
+    #         train_loader=train_loader, test_loader=test_loader, type="graphs"
+    #     )
+    #     graph_pred_explanations, ground_truth_explanations, metrics, explainer = explain(
+    #         model=graph_model,
+    #         dataset=dataset,
+    #         correct_mask=graph_correct_mask,
+    #     )
         
-        explainers[seed] = explainer
+    #     explainers[seed] = explainer
 
-        if args.visualise:
-            visualise_explanation(
-                graph_pred_explanations[1], ground_truth_explanations[1]
-            )
+    #     if args.visualise:
+    #         visualise_explanation(
+    #             graph_pred_explanations[1], ground_truth_explanations[1]
+    #         )
 
-        graph_metrics[seed] = metrics
+    #     graph_metrics[seed] = metrics
 
-        if args.save_explanation_graphml:
-            save_graphml(dataset, graph_pred_explanations, "graph")
+    #     if args.save_explanation_graphml:
+    #         save_graphml(dataset, graph_pred_explanations, "graph")
 
-        if args.test_graph_train_complex_dataset:
-            print(
-                "Testing explainer with model trained on graph, and providing complex dataset."
-            )
-            complex_dataset, _, _ = load_complex_data(seed=seed)
-            explain(
-                model=graph_model,
-                dataset=dataset,
-            )
+    #     if args.test_graph_train_complex_dataset:
+    #         print(
+    #             "Testing explainer with model trained on graph, and providing complex dataset."
+    #         )
+    #         complex_dataset, _, _ = load_complex_data(seed=seed)
+    #         explain(
+    #             model=graph_model,
+    #             dataset=dataset,
+    #         )
 
-        if args.visualise:
-            visualise_explanation(
-                graph_pred_explanations[1], ground_truth_explanations[1]
-            )
+    #     if args.visualise:
+    #         visualise_explanation(
+    #             graph_pred_explanations[1], ground_truth_explanations[1]
+    #         )
 
-        if args.save_explanation_graphml:
-            save_graphml(dataset, graph_pred_explanations, "graph")
+    #     if args.save_explanation_graphml:
+    #         save_graphml(dataset, graph_pred_explanations, "graph")
 
-    # get best seed based on jaccard score
-    best_seed = max(graph_metrics, key=graph_metrics.get("jaccard"))
-    best_metrics = graph_metrics[best_seed]
-    print(f"Best seed for graph explanations: {best_seed}")
-    print(f"Best metrics for graph explanations: ")
-    pprint(best_metrics)
+    # # get best seed based on jaccard score
+    # best_seed = max(graph_metrics, key=graph_metrics.get("jaccard"))
+    # best_metrics = graph_metrics[best_seed]
+    # print(f"Best seed for graph explanations: {best_seed}")
+    # print(f"Best metrics for graph explanations: ")
+    # pprint(best_metrics)
 
-    if args.save_explanation_dir:
-        # sort metrics by jaccard score
-        graph_metrics = dict(
-            sorted(graph_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
-        )
+    # if args.save_explanation_dir:
+    #     # sort metrics by jaccard score
+    #     graph_metrics = dict(
+    #         sorted(graph_metrics.items(), key=lambda x: x[1]["jaccard"], reverse=True)
+    #     )
 
-        # average metrics
-        avg_metrics = {}
-        for key in graph_metrics[seed].keys():
-            avg_metrics[key] = sum([x[key] for x in graph_metrics.values()]) / len(
-                graph_metrics
-            )
+    #     # average metrics
+    #     avg_metrics = {}
+    #     for key in graph_metrics[seed].keys():
+    #         avg_metrics[key] = sum([x[key] for x in graph_metrics.values()]) / len(
+    #             graph_metrics
+    #         )
 
-        graph_metrics["average"] = avg_metrics
+    #     graph_metrics["average"] = avg_metrics
 
-        # std dev metrics
-        std_metrics = {}
-        for key in graph_metrics[seed].keys():
-            std_metrics[key] = np.std([x[key] for x in graph_metrics.values()])
+    #     # std dev metrics
+    #     std_metrics = {}
+    #     for key in graph_metrics[seed].keys():
+    #         std_metrics[key] = np.std([x[key] for x in graph_metrics.values()])
 
-        graph_metrics["std_dev"] = std_metrics
+    #     graph_metrics["std_dev"] = std_metrics
 
-        save_metrics(graph_metrics, args.exp_name, "graph")
+    #     save_metrics(graph_metrics, args.exp_name, "graph")
 
     ######### CELL COMPLEX ##########################
     complex_metrics = {}
     print("Running complex setup")
+    running_type = "complex"
     for seed in tqdm(range(args.start_seed, args.end_seed), desc="Complex Setup Seed:"):
         args.current_seed = seed
 

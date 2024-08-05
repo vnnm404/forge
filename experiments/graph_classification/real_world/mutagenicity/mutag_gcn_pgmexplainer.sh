@@ -2,16 +2,18 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    --dataset Benzene \
-    --model GAT \
+    --dataset Mutagenicity \
+    --model GCN \
     --in_dim 14 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --explanation_algorithm AttentionExplainer \
+    --model_lr 0.05 \
+    --expl_type node \
+    --explanation_algorithm PGMExplainer \
     --graph_epochs 50 \
-    --complex_epochs 30 \
+    --complex_epochs 300 \
     --explanation_epochs 100 \
-    --save_explanation_dir explanations \
+    --save_explanation_dir explanations/ \
     --num_explanations 100 \
     --prop_strategy hp_tuning \
     --start_seed 0 \

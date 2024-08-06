@@ -89,14 +89,17 @@ def initialise_explainer(
             ),
         )
     elif explanation_algorithm_name == "GradExplainer":
+        args.expl_type = "node"
         return GradExplainer(model=model, criterion=F.binary_cross_entropy)
     elif explanation_algorithm_name == "GuidedBP":
+        args.expl_type = "node"
         return GuidedBP(model=model)
     elif explanation_algorithm_name == "GNN_LRP":
         return GNN_LRP(model=model)
     elif explanation_algorithm_name == "Random":
         return RandomExplainer(model=model)
     elif explanation_algorithm_name == "PGMExplainer":
+        args.expl_type = "node"
         return PGMExplainer(model=model, explain_graph=True, perturb_mode="mean")
     else:
         return Explainer(
@@ -126,7 +129,12 @@ def get_graph_level_explanation(
             data.x, data.edge_index, forward_kwargs={"batch": data.batch}, label=data.y
         )
         pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
-    elif args.explanation_algorithm in ["GNN_LRP", "GuidedBP"]:
+    elif args.explanation_algorithm in [ "GuidedBP"]:
+        pred = explainer.get_explanation_graph(
+            x=data.x, y=data.y, edge_index=data.edge_index, forward_kwargs={"batch": data.batch}
+        )
+        pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
+    elif args.explanation_algorithm in ["GNN_LRP"]:
         pred = explainer.get_explanation_graph(
             x=data.x, label=data.y, edge_index=data.edge_index, forward_kwargs={"batch": data.batch}
         )

@@ -1,4 +1,4 @@
-#!/bin/bash
+# #!/bin/bash
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
@@ -9,7 +9,7 @@ python3 main.py \
     --out_dim 1 \
     --expl_type node \
     --explanation_algorithm PGMExplainer \
-    --graph_epochs 50 \
+    # --graph_epochs 50 \
     --complex_epochs 50 \
     --explanation_epochs 100 \
     --save_explanation_dir explanations/ \

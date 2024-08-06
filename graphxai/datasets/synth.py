@@ -65,12 +65,19 @@ def create_shape_graph(shape, features='random'):
     edge_index = torch.cat([edge_index, edge_index[[1, 0]]], dim=1)
     
     # Create the edge mask
-    mask = torch.zeros(edge_index.size(1), dtype=torch.bool)
+    edge_mask = torch.zeros(edge_index.size(1), dtype=torch.bool)
     
     # Cycle edges get 1 in the mask
     for i, (u, v) in enumerate(edge_index.t().tolist()):
         if u >= n and v >= n:
-            mask[i] = 1
+            edge_mask[i] = 1
+    
+    # Create the node mask based on edge importance
+    node_mask = torch.zeros(tree.number_of_nodes(), dtype=torch.bool)
+    for u, v in edge_index.t().tolist():
+        if edge_mask[edge_index.t().tolist().index([u, v])] == 1:
+            node_mask[u] = 1
+            node_mask[v] = 1
     
     # Generate node features
     num_nodes = tree.number_of_nodes()
@@ -81,7 +88,7 @@ def create_shape_graph(shape, features='random'):
     else:
         raise ValueError("Unknown features type")
     
-    return Data(edge_index=edge_index, x=node_features), [Explanation(edge_imp=mask)]
+    return Data(edge_index=edge_index, x=node_features), [Explanation(edge_imp=edge_mask, node_imp=node_mask)]
 
 
 def visualize_graph(data, edge_mask):

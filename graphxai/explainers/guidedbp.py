@@ -90,7 +90,7 @@ class GuidedBP(_BaseDecomposition):
 
         self.model.zero_grad()
         pred = self.__forward_pass(x, edge_index, forward_kwargs)
-        loss = self.criterion(pred, y)
+        loss = self.criterion(pred, y.to(pred.dtype))
         self.__apply_hooks()
         loss.backward()
         self.__rm_hooks()
@@ -163,7 +163,7 @@ class GuidedBP(_BaseDecomposition):
 
         self.model.zero_grad()
         pred = self.__forward_pass(x, edge_index, forward_kwargs)
-        loss = self.criterion(pred, y)
+        loss = self.criterion(pred, y.to(pred.dtype))
         self.__apply_hooks()
         loss.backward()
         self.__rm_hooks()

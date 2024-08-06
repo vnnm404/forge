@@ -136,7 +136,8 @@ class GradExplainer(_BaseExplainer):
         self.model.eval()
         x.requires_grad = True
         output = self.model(x, edge_index, **forward_kwargs)
-        loss = self.criterion(output, label)
+        # print(output.dtype, label.dtype)
+        loss = self.criterion(output, label.to(output.dtype))
         loss.backward()
 
         node_imp = aggregate_node_imp(x.grad, dim=1)

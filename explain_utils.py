@@ -89,17 +89,14 @@ def initialise_explainer(
             ),
         )
     elif explanation_algorithm_name == "GradExplainer":
-        args.expl_type = "node"
         return GradExplainer(model=model, criterion=F.binary_cross_entropy)
     elif explanation_algorithm_name == "GuidedBP":
-        args.expl_type = "node"
         return GuidedBP(model=model)
     elif explanation_algorithm_name == "GNN_LRP":
         return GNN_LRP(model=model)
     elif explanation_algorithm_name == "Random":
         return RandomExplainer(model=model)
     elif explanation_algorithm_name == "PGMExplainer":
-        args.expl_type = "node"
         return PGMExplainer(model=model, explain_graph=True, perturb_mode="mean")
     else:
         return Explainer(
@@ -308,9 +305,11 @@ def explanation_accuracy(
                     gt_edge_mask = gt.node_imp
                 else:
                     gt_edge_mask = gt.edge_imp
+                    
 
                 if gt_edge_mask.sum().item() == 0:
                     continue
+                print(gt_edge_mask)
 
                 gt_edge_mask = gt_edge_mask.cpu().numpy()
                 if isinstance(pred_edge_mask, torch.Tensor):

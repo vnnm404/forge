@@ -228,3 +228,6 @@ args.exp_name = (
     f"{args.task_level}_{args.dataset}_{args.model}_{args.explanation_algorithm}"
 )
 args.time = strftime("%Y-%m-%d-%H-%M-%S", gmtime())
+
+if args.explanation_algorithm in ["GradExplainer", "GuidedBP", "PGMExplainer"]:
+    args.expl_type = "node"

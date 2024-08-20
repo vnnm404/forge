@@ -6,4 +6,5 @@ matplotlib
 seaborn
 tqdm
 networkx
-captum
+ipdb
+pgmpy

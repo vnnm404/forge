@@ -1,6 +1,13 @@
 Code for AAAI submission: Higher Order Structures in Graph Explanations
 
-Please use the below command to install the required packages:
+The codebase is built with `Python 3.10.14`.
+
+To create a new conda environment with the required python version, use the following command:
+```
+conda create -n forge python=3.10.14
+```
+
+Please use the below command to install the required packages in their specific versions:
 ```
 pip install -r requirements.txt
 ```

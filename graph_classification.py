@@ -182,27 +182,6 @@ def graph_classification():
 
         graph_metrics[seed] = metrics
 
-        if args.save_explanation_graphml:
-            save_graphml(dataset, graph_pred_explanations, "graph")
-
-        if args.test_graph_train_complex_dataset:
-            print(
-                "Testing explainer with model trained on graph, and providing complex dataset."
-            )
-            complex_dataset, _, _ = load_complex_data(seed=seed)
-            explain(
-                model=graph_model,
-                dataset=dataset,
-            )
-
-        if args.visualise:
-            visualise_explanation(
-                graph_pred_explanations[1], ground_truth_explanations[1]
-            )
-
-        if args.save_explanation_graphml:
-            save_graphml(dataset, graph_pred_explanations, "graph")
-
     # get best seed based on jaccard score
     best_seed = max(graph_metrics, key=graph_metrics.get("jaccard"))
     best_metrics = graph_metrics[best_seed]
@@ -235,10 +214,8 @@ def graph_classification():
         save_metrics(graph_metrics, args.exp_name, "graph")
 
     ######### CELL COMPLEX ##########################
-    # if args.run_type == "complex":
     complex_metrics = {}
     print("Running complex setup")
-    running_type = "complex"
     for seed in tqdm(range(args.start_seed, args.end_seed), desc="Complex Setup Seed:"):
         args.current_seed = seed
 
@@ -251,28 +228,7 @@ def graph_classification():
             model=model, dataset=complex_dataset, correct_mask=complex_correct_mask, graph_explainer=explainers[seed]
         )
 
-        if args.test_complex_train_graph_dataset:
-            print(
-                "Testing explainer with model trained on complexes, and providing graph dataset."
-            )
-            explain(
-                model=model,
-                dataset=dataset,
-            )
-
-        if args.visualise:
-            visualise_explanation(
-                complex_pred_explanations[1], ground_truth_explanations[1]
-        )
-
         complex_metrics[seed] = metrics
-
-        if args.save_explanation_graphml:
-            save_graphml(dataset, complex_pred_explanations, "complexes")
-
-        ######## SAVE GROUND TRUTH ##########################
-        if args.save_explanation_graphml:
-            save_graphml(dataset, ground_truth_explanations, "gt", is_gt=True)
 
     # get best seed based on jaccard score
     best_seed = max(complex_metrics, key=complex_metrics.get("jaccard"))

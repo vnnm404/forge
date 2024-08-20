@@ -7,6 +7,7 @@ def load_args():
     parser = argparse.ArgumentParser(
         description="HOGE: Higher Order Graph Explanations"
     )
+    parser.add_argument('--run_type', type=str, default='complex', choices=['graph', 'complex'])
     parser.add_argument(
         "--dataset",
         type=str,
@@ -88,7 +89,8 @@ def load_args():
             "PGMExplainer",
             "Random",
             "GradExplainer",
-            "GuidedBP"
+            "GuidedBP",
+            "SubgraphX"
         ],
     )
     parser.add_argument(
@@ -191,7 +193,7 @@ def load_args():
         type=str,
         default="direct_prop",
         help="The strategy for propagating the higher order explanations",
-        choices=["direct_prop", "hierarchical_prop", "hp_tuning"],
+        choices=["direct_prop", "hierarchical_prop", "hp_tuning", "activation_prop", "entropy_prop"],
     )
     parser.add_argument(
         "--alpha_c",

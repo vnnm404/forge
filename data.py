@@ -15,6 +15,7 @@ import networkx as nx
 import numpy as np
 import networkx as nx
 from config import args
+from torch_geometric.utils import to_networkx
 # from config import args
 
 
@@ -543,17 +544,45 @@ def visualize_hetero_graph(data, name="hetero_graph"):
     # plt.show()
     plt.savefig("hetero_graph.png")
 
+def pyg_to_graphml(pyg_data, output_file):
+    # Convert PyG data to NetworkX graph
+    G = to_networkx(pyg_data, to_undirected=True)
+    
+    # Add node features as attributes
+    for i, features in enumerate(pyg_data.x):
+        for j, feature in enumerate(features):
+            G.nodes[i][f'feature_{j}'] = feature.item()
+    
+    # Add edge features as attributes (if available)
+    if pyg_data.edge_attr is not None:
+        for i, (u, v) in enumerate(pyg_data.edge_index.t()):
+            for j, feature in enumerate(pyg_data.edge_attr[i]):
+                G.edges[u.item(), v.item()][f'feature_{j}'] = feature.item()
+    
+    # Write to GraphML file
+    nx.write_graphml(G, output_file)
 
 if __name__ == "__main__":
-    dataset = load_dataset()
-    print(dataset)
+    args.synth_shape_1 = "cycle_6"
+    args.synth_shape_2 = "house"
+    dataset = load_dataset(name="Synth", seed=34)
 
-    graph, expl = dataset[0]
-    print(graph)
-    complex, _ = graph_to_complex(graph)
-    full_complex, mapping = graph_to_full_complex(graph)
-    print(complex)
-    print(mapping)
+    # convert pyg data object to graphml
+    for i in range(len(dataset)):
+        data = dataset[i][0]
+        print(data, data.y, data.y.item())
+        if data.y.item() == 1:
+            print(data)
+            pyg_to_graphml(data, f"synth_{i}_class_0.graphml")
+            break
 
-    visualize_hetero_graph(complex)
-    visualize_hetero_graph(full_complex, name="full_hetero_graph")
+
+    # graph, expl = dataset[0]
+    # print(graph)
+    # complex, _ = graph_to_complex(graph)
+    # full_complex, mapping = graph_to_full_complex(graph)
+    # print(complex)
+    # print(mapping)
+
+    # visualize_hetero_graph(complex)
+    # visualize_hetero_graph(full_complex, name="full_hetero_graph")

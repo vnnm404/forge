@@ -15,8 +15,7 @@ python3 main.py \
     --save_explanation_dir explanations \
     --num_explanations 100 \
     --prop_strategy direct_prop \
-    --explanation_aggregation topk \
     --alpha_c 0 \
     --alpha_e 0 \
     --start_seed 0 \
-    --end_seed 1
+    --end_seed 2

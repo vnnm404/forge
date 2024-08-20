@@ -14,6 +14,8 @@ python3 main.py \
     --explanation_epochs 100 \
     --save_explanation_dir explanations/ \
     --num_explanations 100 \
-    --prop_strategy hp_tuning \
+    --prop_strategy activation_prop \
+    --alpha_c 1.5 \
+    --alpha_e 1.5 \
     --start_seed 0 \
-    --end_seed 10
+    --end_seed 2

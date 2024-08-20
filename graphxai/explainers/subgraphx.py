@@ -54,13 +54,13 @@ class SubgraphX(_BaseExplainer):
         self,
         model,
         num_hops: Optional[int] = None,
-        rollout: int = 10,
+        rollout: int = 1,
         min_atoms: int = 3,
         c_puct: float = 10.0,
-        expand_atoms=14,
+        expand_atoms=4,
         high2low=False,
         local_radius=4,
-        sample_num=100,
+        sample_num=10,
         reward_method="mc_l_shapley",
         subgraph_building_method="zero_filling",
     ):
@@ -244,6 +244,7 @@ class SubgraphX(_BaseExplainer):
         max_nodes: int = 14,
         forward_kwargs: dict = {},
     ):
+        # print("STARTED")
         """
         Get explanation for a whole graph prediction.
         Args:
@@ -284,6 +285,7 @@ class SubgraphX(_BaseExplainer):
         # prediction = probs.argmax(-1)
 
         value_func = self._prob_score_func_graph(target_class=label)
+        # print("1")
 
         def wrap_value_func(data):
             return value_func(
@@ -291,14 +293,19 @@ class SubgraphX(_BaseExplainer):
             )
 
         payoff_func = self.get_reward_func(wrap_value_func, explain_graph=True)
+        # print("2")
         self.mcts_state_map = self.get_mcts_class(
             x, edge_index, score_func=payoff_func, explain_graph=True
         )
+        # print("3")
         results = self.mcts_state_map.mcts(verbose=False)
+        # print("4")
 
         best_result = find_closest_node_result(results, max_nodes=max_nodes)
+        # print("5")
 
         node_mask, edge_mask = self.__parse_results(best_result, edge_index)
+        # print("6")
 
         exp = Explanation(node_imp=node_mask.float(), edge_imp=edge_mask.float())
         # exp.node_imp = node_mask

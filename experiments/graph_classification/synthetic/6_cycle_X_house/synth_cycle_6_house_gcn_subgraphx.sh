@@ -2,14 +2,14 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    --dataset Synth_bull_4_cycle \
+    --dataset Synth_cycle_6_house \
     --model GCN \
-    --synth_shape_1 bull \
-    --synth_shape_2 cycle_4 \
+    --synth_shape_1 cycle_6 \
+    --synth_shape_2 house \
     --in_dim 16 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --explanation_algorithm GuidedBP \
+    --explanation_algorithm SubgraphX \
     --graph_epochs 50 \
     --complex_epochs 50 \
     --explanation_epochs 100 \

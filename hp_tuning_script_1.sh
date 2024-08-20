@@ -1,7 +1,0 @@
-sh experiments/graph_classification/fluoride_carbonyl/fluoride_carbonyl_gcn_gnn_explainer.sh
-sh experiments/graph_classification/fluoride_carbonyl/fluoride_carbonyl_gcn_gmexplainer.sh
-sh experiments/graph_classification/fluoride_carbonyl/fluoride_carbonyl_gat_attn_explainer.sh
-
-sh experiments/graph_classification/benzene/benzene_gcn_gnn_explainer.sh
-sh experiments/graph_classification/benzene/benzene_gcn_gnn_gmexplainer.sh
-sh experiments/graph_classification/benzene/benzene_gat_attn_explainer.sh

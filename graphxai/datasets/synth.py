@@ -137,7 +137,7 @@ class Synth(GraphDataset):
         shape1,
         shape2,
         split_sizes=(0.8, 0.2, 0),
-        seed=None,
+        seed=0,
         device=None,
     ):
         """

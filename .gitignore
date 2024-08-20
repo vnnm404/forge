@@ -7,8 +7,10 @@ figs/*
 trained_models/*
 graphml/*
 explanations/*
+explanations_subgraphx/*
 data/
 final_models/
+metrics/
 
 !figs/.gitkeep
 !trained_models/.gitkeep

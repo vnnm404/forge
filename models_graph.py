@@ -72,7 +72,7 @@ class GIN(torch.nn.Module):
         self.conv3 = GINConv(self.mlp3)
         self.lin = torch.nn.Linear(hidden_dim, out_dim)
 
-    def forward(self, x, edge_index, batch):
+    def forward(self, x, edge_index, batch=None):
         x = self.conv1(x, edge_index)
         x = x.relu()
         x = self.conv2(x, edge_index)

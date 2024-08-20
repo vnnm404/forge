@@ -8,6 +8,7 @@ from graphxai.datasets import (
 import csv
 from tqdm import tqdm
 import torch
+from graphxai.datasets.synth import Synth
 from torch_geometric.data import HeteroData
 import networkx as nx
 import numpy as np
@@ -141,6 +142,30 @@ def load_dataset(name="Benzene"):
         return Mutagenicity(root="data/")
     elif name == "FluorideCarbonyl":
         return FluorideCarbonyl()
+    elif name == "House/Wheel":
+        return Synth(
+            num_samples=2000,
+            shape1="house",
+            shape2="wheel",
+        )
+    elif name == "Bull/Square":
+        return Synth(
+            num_samples=2000,
+            shape1="bull",
+            shape2="cycle_4",
+        )
+    elif name == "Wheel/Cube":
+        return Synth(
+            num_samples=2000,
+            shape1="wheel",
+            shape2="cube",
+        )
+    elif name == "House/Hex":
+        return Synth(
+            num_samples=2000,
+            shape1="house",
+            shape2="cycle_6",
+        )
     else:
         raise NotImplementedError(f"Dataset {name} is not implemented.")
 
@@ -216,5 +241,5 @@ def save_to_csv(dataset_names):
 
 
 if __name__ == "__main__":
-    dataset_names = ["Benzene", "AlkaneCarbonyl", "Mutagenicity", "FluorideCarbonyl"]
+    dataset_names = ["Benzene", "AlkaneCarbonyl", "Mutagenicity", "FluorideCarbonyl", "House/Wheel", "Bull/Square", "Wheel/Cube", "House/Hex"]
     save_to_csv(dataset_names)

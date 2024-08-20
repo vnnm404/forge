@@ -2,15 +2,16 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    --dataset Mutagenicity \
+    --dataset Synth_wheel_cube \
     --model GCN \
-    --in_dim 14 \
+    --synth_shape_1 wheel \
+    --synth_shape_2 cube \
+    --in_dim 16 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --model_lr 0.05 \
-    --explanation_algorithm GuidedBP \
+    --explanation_algorithm SubgraphX \
     --graph_epochs 50 \
-    --complex_epochs 300 \
+    --complex_epochs 50 \
     --explanation_epochs 100 \
     --save_explanation_dir explanations/ \
     --num_explanations 100 \

@@ -2,7 +2,7 @@
 
 # Run the benzene experiment with the GCN explainer
 python3 main.py \
-    ---dataset Synth_wheel_cube \
+    --dataset Synth_wheel_cube \
     --model GCN \
     --synth_shape_1 wheel \
     --synth_shape_2 cube \

@@ -1,0 +1,11 @@
+Propagation Method,Metric,Average Score
+nonlinear_activation_propagation,Average,0.19346752068632325
+nonlinear_activation_propagation,Std Deviation,0.011603432583911652
+entropy_based_propagation,Average,0.1953011998721609
+entropy_based_propagation,Std Deviation,0.010563893925571659
+direct_prop,Average,0.19405986753306773
+direct_prop,Std Deviation,0.012105321052657216
+hierarchical_prop,Average,0.19349694127993824
+hierarchical_prop,Std Deviation,0.011715064347553364
+Baseline,Average,0.08330007296624943
+Baseline,Std Deviation,0.008236089220830385

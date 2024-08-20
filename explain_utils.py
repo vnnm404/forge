@@ -1,4 +1,5 @@
 from collections import defaultdict
+import pickle
 from pprint import pprint
 from typing import List, Optional, Union
 from graphxai.explainers.pgm_explainer.pgm_explainer import PGMExplainer
@@ -18,7 +19,14 @@ from tqdm import tqdm
 from torch_geometric.explain import Explanation as PyGExplanation
 from data import ComplexDataset
 from graphxai.utils.explanation import Explanation as GraphXAIExplanation
-from graphxai.explainers import SubgraphX, PGExplainer, GNN_LRP, RandomExplainer, GradExplainer, GuidedBP
+from graphxai.explainers import (
+    SubgraphX,
+    PGExplainer,
+    GNN_LRP,
+    RandomExplainer,
+    GradExplainer,
+    GuidedBP,
+)
 from graphxai.explainers._base import _BaseExplainer
 from graphxai.datasets.dataset import GraphDataset, NodeDataset
 from sklearn.metrics import (
@@ -88,6 +96,8 @@ def initialise_explainer(
                 return_type="probs",
             ),
         )
+    elif explanation_algorithm_name == "SubgraphX":
+        return SubgraphX(model=model)
     elif explanation_algorithm_name == "GradExplainer":
         return GradExplainer(model=model, criterion=F.binary_cross_entropy)
     elif explanation_algorithm_name == "GuidedBP":
@@ -119,21 +129,20 @@ def get_graph_level_explanation(
     explainer: Union[Explainer, _BaseExplainer], data: Data
 ):
     pred = None
-    if args.explanation_algorithm not in ["PGMExplainer", "GNN_LRP", "Random", "GradExplainer", "GuidedBP"]:
-        pred = explainer(data.x, edge_index=data.edge_index)
-    elif args.explanation_algorithm in ["GradExplainer"]:
+    if args.explanation_algorithm in ["GradExplainer", "GNN_LRP", "SubgraphX"]:
         pred = explainer.get_explanation_graph(
-            data.x, data.edge_index, forward_kwargs={"batch": data.batch}, label=data.y
+            x=data.x,
+            edge_index=data.edge_index,
+            forward_kwargs={"batch": data.batch},
+            label=data.y,
         )
         pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
-    elif args.explanation_algorithm in [ "GuidedBP"]:
+    elif args.explanation_algorithm in ["GuidedBP"]:
         pred = explainer.get_explanation_graph(
-            x=data.x, y=data.y, edge_index=data.edge_index, forward_kwargs={"batch": data.batch}
-        )
-        pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
-    elif args.explanation_algorithm in ["GNN_LRP"]:
-        pred = explainer.get_explanation_graph(
-            x=data.x, label=data.y, edge_index=data.edge_index, forward_kwargs={"batch": data.batch}
+            x=data.x,
+            y=data.y,
+            edge_index=data.edge_index,
+            forward_kwargs={"batch": data.batch},
         )
         pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
     elif args.explanation_algorithm in ["Random", "PGMExplainer"]:
@@ -141,6 +150,8 @@ def get_graph_level_explanation(
             x=data.x, edge_index=data.edge_index, forward_kwargs={"batch": data.batch}
         )
         pred = {"edge_mask": pred.edge_imp, "node_mask": pred.node_imp}
+    else:
+        pred = explainer(data.x, edge_index=data.edge_index)
     return pred
 
 
@@ -178,6 +189,7 @@ def explain_graph_dataset(
     ground_truth_explanations = []
     count = 0
     f = []
+    time_taken = 0
     # for i in tqdm(range(num), desc="Explaining Graphs"):
     for i, index in enumerate(tqdm(dataset.test_index)):
         if count >= num:
@@ -203,6 +215,7 @@ def explain_graph_dataset(
 
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
+        st = time()
         pred = get_graph_level_explanation(explainer, data)
         if args.expl_type == "edge":
             if args.explanation_aggregation == "topk":
@@ -212,6 +225,7 @@ def explain_graph_dataset(
                     pred["edge_mask"] >= pred["edge_mask"].topk(k).values.min()
                 ).float()
             elif args.explanation_aggregation == "threshold":
+                # print('HERE')
                 pred["edge_mask"] = pred["edge_mask"] >= 0.5
         elif args.expl_type == "node":
             if args.explanation_aggregation == "topk":
@@ -226,8 +240,10 @@ def explain_graph_dataset(
             raise NotImplementedError(
                 f"Explanation type {args.expl_type} is not implemented."
             )
+        time_taken += time() - st
         # faithfulness = explanation_faithfulness(explainer, data, pred)
         faithfulness = torch.tensor(0.0)
+
         f.append(faithfulness)
         pred_explanations.append(pred)
         ground_truth_explanations.append(gt_explanation)
@@ -235,8 +251,7 @@ def explain_graph_dataset(
     # take mean of faithfulness and get the number out of the tensor
     f = sum(f) / len(f)
     f = f.item()
-    print(f)
-    return pred_explanations, ground_truth_explanations, f
+    return pred_explanations, ground_truth_explanations, f, time_taken
 
 
 def explanation_faithfulness(
@@ -246,21 +261,45 @@ def explanation_faithfulness(
 ):
     mask = "node_mask" if args.expl_type == "node" else "edge_mask"
     predicted_explanation[mask] = predicted_explanation[mask].float()
-    y = graph_explainer.get_prediction(data.x, data.edge_index)
-    y_masked = graph_explainer.get_masked_prediction(
-        x=data.x, edge_index=data.edge_index, edge_mask=predicted_explanation[mask]
-    )
+    if isinstance(graph_explainer, _BaseExplainer):
+        y = graph_explainer._predict(data.x, data.edge_index, return_type="prob")
+    else:
+        y = graph_explainer.get_prediction(data.x, data.edge_index)
+    if args.expl_type == "node":
+        if isinstance(graph_explainer, _BaseExplainer):
+            # multiply the node mask with the node features
+            predicted_explanation[mask] = predicted_explanation[mask].to(data.x.device)
+            x = data.x * predicted_explanation[mask].unsqueeze(1)
+            y_masked = graph_explainer._predict(x, data.edge_index, return_type="prob")
+        else:
+            y_masked = graph_explainer.get_masked_prediction(
+                x=data.x,
+                edge_index=data.edge_index,
+                node_mask=predicted_explanation[mask],
+            )
+    else:
+        if isinstance(graph_explainer, _BaseExplainer):
+            y_masked = graph_explainer._predict(
+                data.x,
+                data.edge_index[:, predicted_explanation[mask].bool()],
+                return_type="prob",
+            )
+        else:
+            y_masked = graph_explainer.get_prediction(
+                x=data.x,
+                edge_index=data.edge_index[:, predicted_explanation[mask].bool()],
+            )
+    # if zero dimension, add a dimension
+    if len(y.shape) == 0:
+        y = y.unsqueeze(0)
+    if len(y_masked.shape) == 0:
+        y_masked = y_masked.unsqueeze(0)
     y = torch.cat([1 - y, y])
     y_masked = torch.cat([1 - y_masked, y_masked])
-
-    # convert y_masked to a log probability
-    y_masked = F.log_softmax(y_masked, dim=0)
-
-    kl_div = F.kl_div(y_masked, y, reduction="batchmean")
     # kl(p,q) p=log probs, q = prob
 
-    # kl_div = kl_divergence_distributions(y, y_masked)
-    return torch.exp(-kl_div)
+    kl_div = kl_divergence_distributions(y, y_masked)
+    return 1 - torch.exp(-kl_div)
 
 
 def explanation_accuracy(
@@ -305,11 +344,9 @@ def explanation_accuracy(
                     gt_edge_mask = gt.node_imp
                 else:
                     gt_edge_mask = gt.edge_imp
-                    
 
                 if gt_edge_mask.sum().item() == 0:
                     continue
-                print(gt_edge_mask)
 
                 gt_edge_mask = gt_edge_mask.cpu().numpy()
                 if isinstance(pred_edge_mask, torch.Tensor):
@@ -551,7 +588,7 @@ def create_node_mapping(graph):
     cycle_node_to_edge_node = []
     edge_node_to_og_node = []
     cycle_node_to_og_node = []
-    
+
     cache = set()
 
     for i in range(len(graph.edge_index[0])):
@@ -564,7 +601,6 @@ def create_node_mapping(graph):
 
         # get the node types
         u_type, v_type = node_type[mi].item(), node_type[ma].item()
-    
 
         if u_type == v_type:
             continue  # we only care about node-to-edge_node or edge_node-to-og_node mappings
@@ -769,7 +805,7 @@ def nonlinear_activation_propagation(
         new_node_mask[:num_og_nodes] = node_mask[:num_og_nodes]
 
         return new_node_mask
-    
+
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
     num_og_edges = (edge_type == 0).sum().item()
@@ -817,7 +853,7 @@ def entropy_based_propagation(graph, explanation, mappings, alpha_c=1.0, alpha_e
         new_node_mask[:num_og_nodes] = node_mask[:num_og_nodes]
 
         return new_node_mask
-    
+
     edge_mask = explanation["edge_mask"]
     edge_type = graph.edge_type
     num_og_edges = (edge_type == 0).sum().item()
@@ -861,6 +897,7 @@ def explain_cell_complex_dataset(
     ground_truth_explanations = []
     count = 0
     f = []
+    time_taken = 0
     # for i in tqdm(range(num), desc="Explaining Cell Complexes"):
     for i, index in enumerate(tqdm(dataset.test_index)):
         if count >= num:
@@ -887,12 +924,18 @@ def explain_cell_complex_dataset(
         assert data.x is not None, "Data must have node features."
         assert data.edge_index is not None, "Data must have edge index."
         pred = get_graph_level_explanation(explainer, data)
+        pred_explanations.append(pred)
+        ground_truth_explanations.append(gt_explanation)
 
         edge_mask = None
 
         if args.prop_strategy == "hp_tuning":
             info_prop_methods = []
-            mappings = create_edge_mapping(data) if args.expl_type == "edge" else create_node_mapping(data)
+            mappings = (
+                create_edge_mapping(data)
+                if args.expl_type == "edge"
+                else create_node_mapping(data)
+            )
             for prop_method in tqdm(
                 [
                     "direct_prop",
@@ -909,13 +952,20 @@ def explain_cell_complex_dataset(
                                 data, pred, mappings, alpha_c=a_c, alpha_e=a_e
                             )
                         )
-                        edge_mask = (edge_mask >= 0.5).float()
+                        if args.explanation_aggregation == "topk":
+                            k = int(0.25 * len(edge_mask))
+                            # take top k edges as 1 and rest as 0
+                            edge_mask = (
+                                edge_mask >= edge_mask.topk(k).values.min()
+                            ).float()
+                        elif args.explanation_aggregation == "threshold":
+                            edge_mask = (edge_mask >= 0.5).float()
                         if args.expl_type == "node":
                             node_mask = edge_mask
                             edge_mask = None
                         elif args.expl_type == "edge":
                             node_mask = None
-                        
+
                         info_prop_methods.append(
                             {
                                 "prop_method": prop_method,
@@ -928,7 +978,12 @@ def explain_cell_complex_dataset(
             pred_explanations.append(info_prop_methods)
             ground_truth_explanations.append(gt_explanation)
         else:
-            mappings = create_edge_mapping(data) if args.expl_type == "edge" else create_node_mapping(data)
+            mappings = (
+                create_edge_mapping(data)
+                if args.expl_type == "edge"
+                else create_node_mapping(data)
+            )
+            st = time()
             if args.prop_strategy == "direct_prop":
                 edge_mask = norm(
                     direct_prop(
@@ -941,28 +996,37 @@ def explain_cell_complex_dataset(
                         data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
                     )
                 )
-            else:
-                raise NotImplementedError(
-                    f"Propagation strategy {args.prop_strategy} is not implemented."
+            elif args.prop_strategy == "nonlinear_activation_propagation":
+                edge_mask = norm(
+                    nonlinear_activation_propagation(
+                        data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                    )
                 )
-                
+            elif args.prop_strategy == "entropy_based_propagation":
+                edge_mask = norm(
+                    entropy_based_propagation(
+                        data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                    )
+                )
+
             mask = "node_mask" if args.expl_type == "node" else "edge_mask"
             if args.explanation_aggregation == "topk":
                 k = int(0.25 * len(edge_mask))
                 # take top k edges as 1 and rest as 0
-                pred[mask] = (
-                    edge_mask >= edge_mask.topk(k).values.min()
-                ).float()
+                pred[mask] = (edge_mask >= edge_mask.topk(k).values.min()).float()
             elif args.explanation_aggregation == "threshold":
                 pred[mask] = (edge_mask >= 0.5).float()
+
+            time_taken += time() - st
+
             if graph_explainer is not None:
                 faithfulness = explanation_faithfulness(
                     graph_explainer,
                     dataset.get_underlying_graph(index).to(device),
                     pred,
                 )
-                f.append(faithfulness)     
-        
+                f.append(faithfulness)
+
             pred_explanations.append(pred)
             ground_truth_explanations.append(gt_explanation)
         count += 1
@@ -972,7 +1036,7 @@ def explain_cell_complex_dataset(
     else:
         f = sum(f) / len(f)
         f = f.item()
-    return pred_explanations, ground_truth_explanations, f
+    return pred_explanations, ground_truth_explanations, f, time_taken
 
 
 def explain_dataset(

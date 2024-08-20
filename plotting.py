@@ -3,42 +3,60 @@ import seaborn as sns
 import numpy as np
 import json
 
-n = 4
+n = 2
 with open('complex_vs_avg_degree.json') as f:
     data = json.load(f)
-    N = data['N']
+    # N = data['N']
     x = data['Ds']
+    # x = data['Ns']
     y_labels = []
+    line_types = []
     ys = []
     for key in data["results"]:
-        y_labels.append(key)
+        print(key)        
+        if "nodes" in key:
+            continue
+        if "full_complex" in key:
+            y_labels.append("Full Complex")
+            line_types.append("1")
+        else:
+            y_labels.append("Reduced Complex")
+            line_types.append("2")
+        
         ys.append(data["results"][key])
     
 # Set the style
 sns.set(style="whitegrid")
 
 # Create the plot
-plt.figure(figsize=(12, 8))
-
+plt.figure(figsize=(8.2, 8.2))
+plt.tight_layout()
 # Use a colormap
 colors = sns.color_palette("husl", n)
 
-# Plot each line with a legend
+# create a color dictionary with the labels
+color_dict = {
+    'Full Complex': colors[0],
+    'Reduced Complex': colors[1]
+}
+print(color_dict)
+
+# create a line type dictionary with the labels
+line_dict = dict(zip(line_types, ["-", "--"]))
+
+# Plot each line with large width
 for i, y in enumerate(ys):
-    plt.plot(x, y, label=y_labels[i], color=colors[i], linewidth=2.5)
+    print(color_dict[y_labels[i]])
+    y = [i/1e5 for i in y]
+    sns.lineplot(x=x, y=y, label=y_labels[i], color=color_dict[y_labels[i]], linestyle=line_dict[line_types[i]], linewidth=3.5)
 
-# Add titles and labels
-plt.title("Variation of Complex Size with Degree (10,000 nodes)", fontsize=20)
-plt.xlabel("AVg. Degree", fontsize=16)
-plt.ylabel("Number of Edges/Nodes", fontsize=16)
 
-# Customize the ticks
-plt.xticks(fontsize=14)
-plt.yticks(fontsize=14)
+plt.legend(title="Complex Type", loc="upper left", fontsize=24)
 
-# Add legend
-plt.legend(title="Legend", title_fontsize='13', fontsize='12')
+# make the ticks and labels bigger
+plt.xticks(fontsize=22)
+plt.yticks(fontsize=22)
+plt.xlabel("")
+plt.ylabel("")
 
-# Show the plot
-
-plt.savefig('complex_vs_avg_degree.png')
+plt.savefig('complex_vs_avg_degree.svg')

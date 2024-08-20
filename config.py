@@ -88,7 +88,8 @@ def load_args():
             "PGMExplainer",
             "Random",
             "GradExplainer",
-            "GuidedBP"
+            "GuidedBP",
+            "SubgraphX",
         ],
     )
     parser.add_argument(

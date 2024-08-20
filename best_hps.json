@@ -1,0 +1,1013 @@
+{
+    "graph_Synth_cycle_6_house_GCN_GraphMaskExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            1.0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0.5,
+            0
+        ]
+    },
+    "graph_Synth_house_wheel_GCN_GradExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            1.5,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ]
+    },
+    "graph_Synth_cycle_6_house_GCN_GradExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ]
+    },
+    "graph_AlkaneCarbonyl_GCN_SubgraphX": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.0
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.0,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.0,
+            0
+        ]
+    },
+    "graph_Mutagenicity_GCN_SubgraphX": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0.5,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0.5,
+            0
+        ]
+    },
+    "graph_Synth_house_wheel_GCN_GNNExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            0.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.5
+        ]
+    },
+    "graph_Synth_cycle_6_house_GCN_GNNExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.0,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.0,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            1.5
+        ]
+    },
+    "graph_FluorideCarbonyl_GCN_GNNExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0.5,
+            1.0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            1.0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.5
+        ]
+    },
+    "graph_AlkaneCarbonyl_GCN_Random": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.0
+        ]
+    },
+    "graph_Synth_wheel_cube_GCN_GradExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            1.5
+        ]
+    },
+    "graph_AlkaneCarbonyl_GCN_GNNExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0.5,
+            1.0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.0
+        ]
+    },
+    "graph_Mutagenicity_GCN_PGMExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0.5,
+            1.0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.5
+        ]
+    },
+    "graph_Synth_bull_4_cycle_GCN_Random": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0.5
+        ]
+    },
+    "graph_AlkaneCarbonyl_GCN_GraphMaskExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.0,
+            1.0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0.5,
+            0
+        ]
+    },
+    "graph_Synth_bull_4_cycle_GCN_GradExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ]
+    },
+    "graph_FluorideCarbonyl_GCN_PGMExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            1.0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            1.5,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            1.0
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0.5,
+            0.5
+        ]
+    },
+    "graph_AlkaneCarbonyl_GCN_PGMExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0.5
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            1.0
+        ]
+    },
+    "graph_Mutagenicity_GCN_GNNExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ]
+    },
+    "graph_Synth_wheel_cube_GCN_GraphMaskExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0.5,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.0
+        ]
+    },
+    "graph_Synth_wheel_cube_GCN_Random": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            1.5
+        ]
+    },
+    "graph_Benzene_GCN_SubgraphX": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ]
+    },
+    "graph_Synth_house_wheel_GCN_Random": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            1.5
+        ]
+    },
+    "graph_FluorideCarbonyl_GCN_SubgraphX": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.0
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.0,
+            1.5
+        ]
+    },
+    "graph_Synth_house_wheel_GCN_PGMExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            1.0,
+            0.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0.5,
+            1.0
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0.5
+        ]
+    },
+    "graph_Mutagenicity_GCN_GradExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.0,
+            1.5
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            1.5
+        ]
+    },
+    "graph_Synth_cycle_6_house_GCN_PGMExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            1.5,
+            1.0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0.5,
+            1.0
+        ]
+    },
+    "graph_Synth_bull_4_cycle_GCN_PGMExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            1.0,
+            0.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0.5,
+            1.0
+        ]
+    },
+    "graph_Benzene_GCN_PGMExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            1.5,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            1.5
+        ]
+    },
+    "graph_Benzene_GCN_Random": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0.5
+        ]
+    },
+    "graph_Synth_cycle_6_house_GCN_Random": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ]
+    },
+    "graph_Synth_house_wheel_GCN_SubgraphX": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ]
+    },
+    "graph_Benzene_GCN_GraphMaskExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            1.0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.0
+        ]
+    },
+    "graph_Synth_wheel_cube_GCN_SubgraphX": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ]
+    },
+    "graph_Synth_wheel_cube_GCN_PGMExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            1.0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0.5,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            0.5
+        ]
+    },
+    "graph_Synth_house_wheel_GCN_GraphMaskExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.0,
+            0.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.0
+        ]
+    },
+    "graph_Synth_cycle_6_house_GCN_SubgraphX": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ]
+    },
+    "graph_FluorideCarbonyl_GCN_Random": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.0
+        ]
+    },
+    "graph_FluorideCarbonyl_GCN_GradExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0.5,
+            1.0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            1.0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            1.0
+        ]
+    },
+    "graph_Mutagenicity_GCN_Random": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.0,
+            1.0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            0.5
+        ]
+    },
+    "graph_Synth_wheel_cube_GCN_GNNExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0.5,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            1.5
+        ]
+    },
+    "graph_AlkaneCarbonyl_GCN_GradExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0.5
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            0
+        ]
+    },
+    "graph_Mutagenicity_GCN_GraphMaskExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            1.0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            0.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0.5,
+            0
+        ]
+    },
+    "graph_Synth_bull_4_cycle_GCN_GNNExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0.5
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            1.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            1.5
+        ]
+    },
+    "graph_Benzene_GCN_GNNExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0.5,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.0
+        ]
+    },
+    "graph_Benzene_GCN_GradExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            1.5,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            1.0
+        ]
+    },
+    "graph_FluorideCarbonyl_GCN_GraphMaskExplainer": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            0,
+            1.5
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            1.5
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0.5,
+            0
+        ]
+    },
+    "graph_Synth_bull_4_cycle_GCN_GraphMaskExplainer": {
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            1.5,
+            1.0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0
+        ],
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.5,
+            1.0
+        ],
+        "direct_prop": [
+            "direct_prop",
+            1.5,
+            1.0
+        ]
+    },
+    "graph_Synth_bull_4_cycle_GCN_SubgraphX": {
+        "hierarchical_prop": [
+            "hierarchical_prop",
+            1.0,
+            1.0
+        ],
+        "entropy_based_propagation": [
+            "entropy_based_propagation",
+            0,
+            0
+        ],
+        "nonlinear_activation_propagation": [
+            "nonlinear_activation_propagation",
+            0,
+            0.5
+        ],
+        "direct_prop": [
+            "direct_prop",
+            0,
+            0
+        ]
+    }
+}

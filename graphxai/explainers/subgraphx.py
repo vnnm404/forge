@@ -50,21 +50,21 @@ class SubgraphX(_BaseExplainer):
 
     """
 
-    def __init__(
+    def _init_(
         self,
         model,
-        num_hops: Optional[int] = None,
-        rollout: int = 10,
+        num_hops: Optional[int] = 2,
+        rollout: int = 1,
         min_atoms: int = 3,
         c_puct: float = 10.0,
-        expand_atoms=14,
+        expand_atoms=4,
         high2low=False,
         local_radius=4,
-        sample_num=100,
+        sample_num=20,
         reward_method="mc_l_shapley",
         subgraph_building_method="zero_filling",
     ):
-
+        print("SubgraphX")
         super().__init__(model=model, is_subgraphx=True)
         self.model.eval()
         self.num_hops = self.update_num_hops(num_hops)
@@ -81,6 +81,8 @@ class SubgraphX(_BaseExplainer):
         self.sample_num = sample_num
         self.reward_method = reward_method
         self.subgraph_building_method = subgraph_building_method
+        
+        print("REWARD METHOD", reward_method)
 
     def update_num_hops(self, num_hops):
         if num_hops is not None:

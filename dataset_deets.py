@@ -179,8 +179,8 @@ def get_data_stats(dataset):
     for i in tqdm(range(len(dataset))):
         data, _, num_cycles, max_cycle_length = graph_to_complex(dataset[i][0])
         data = data.to_homogeneous()
-        n_nodes += data.num_nodes
-        n_edges += data.num_edges
+        n_nodes += dataset[i][0].num_nodes
+        n_edges += dataset[i][0].num_edges
         n_cycles += num_cycles
         n_graphs += 1
 

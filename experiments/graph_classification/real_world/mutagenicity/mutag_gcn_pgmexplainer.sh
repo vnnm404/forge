@@ -7,11 +7,10 @@ python3 main.py \
     --in_dim 14 \
     --hidden_dim 64 \
     --out_dim 1 \
-    --model_lr 0.05 \
     --expl_type node \
     --explanation_algorithm PGMExplainer \
     --graph_epochs 50 \
-    --complex_epochs 300 \
+    --complex_epochs 50 \
     --explanation_epochs 100 \
     --save_explanation_dir explanations/ \
     --num_explanations 100 \

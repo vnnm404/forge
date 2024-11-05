@@ -104,24 +104,27 @@ def explain(model, dataset, correct_mask, graph_explainer=None):
     pred_explanations, ground_truth_explanations, faithfulness, t = explain_dataset(
         explainer, dataset, num=args.num_explanations, correct_mask=correct_mask, graph_explainer=graph_explainer
     )
-    # if args.prop_strategy == "hp_tuning":
-    #     metrics = []
-    #     for j in range(len(pred_explanations[0])):
-    #         masks = [(pred_explanations[i][j]["edge_mask"], pred_explanations[i][j]["node_mask"]) for i in range(len(pred_explanations))]
-    #         pred_expls = [Explanation(edge_mask=edge_mask, node_mask=node_mask) for edge_mask, node_mask in masks]
+    if args.prop_strategy == "hp_tuning":
+        metrics = []
+        for j in range(len(pred_explanations[0])):
+            masks = [(pred_explanations[i][j]["edge_mask"], pred_explanations[i][j]["node_mask"]) for i in range(len(pred_explanations))]
+            pred_expls = [Explanation(edge_mask=edge_mask, node_mask=node_mask) for edge_mask, node_mask in masks]
 
-    #         metric = explanation_accuracy(
-    #             ground_truth_explanations, pred_expls
-    #         )
-    #         metric["prop_method"] = pred_explanations[0][j]["prop_method"]
-    #         metric["alpha_c"] = pred_explanations[0][j]["alpha_c"]
-    #         metric["alpha_e"] = pred_explanations[0][j]["alpha_e"]
+            metric = explanation_accuracy(
+                ground_truth_explanations, pred_expls
+            )
+            metric["prop_method"] = pred_explanations[0][j]["prop_method"]
+            metric["alpha_c"] = pred_explanations[0][j]["alpha_c"]
+            metric["alpha_e"] = pred_explanations[0][j]["alpha_e"]
             
-    #         metrics.append(metric)
-            
-    #     metrics = sorted(metrics, key=lambda x: x["jaccard"], reverse=True)
-    #     print(metrics)
-    #     return pred_explanations, ground_truth_explanations, metrics, explainer
+        metrics = sorted(metrics, key=lambda x: x["jaccard"], reverse=True)
+        print(metrics)
+        return pred_explanations, ground_truth_explanations, metrics, explainer
+    
+    # print("Class 0 metrics:")
+    # pprint(metrics_0)
+    # print("Class 1 metrics:")
+    # pprint(metrics_1)
                 
     metrics = explanation_accuracy(ground_truth_explanations, pred_explanations)
     metrics["faithfulness"] = faithfulness

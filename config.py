@@ -22,7 +22,9 @@ def load_args():
             "Synth_wheel_cube",
             "Synth_cycle_6_house",
             "Synth_cycle_4_star",
-            "Synth_bull_4_cycle"
+            "Synth_bull_4_cycle",
+            "Synth_carboxyl_6_cycle",
+            "Synth_carboxyl",
         ],
     )
     parser.add_argument(
@@ -30,14 +32,14 @@ def load_args():
         type=str,
         default='cycle_6',
         help='The shape of the first class in the synthetic dataset',
-        choices=['cycle_4', 'cycle_5', 'cycle_6', 'cycle_8', 'wheel', 'house', 'cube', 'peterson', 'house_x', 'star', 'bull']
+        choices=['cycle_4', 'cycle_5', 'cycle_6', 'cycle_8', 'wheel', 'house', 'cube', 'peterson', 'house_x', 'star', 'bull', 'carboxyl']
     )
     parser.add_argument(
         '--synth_shape_2',
         type=str,
         default='star',
         help='The shape of the second class in the synthetic dataset',
-        choices=['cycle_4', 'cycle_5', 'cycle_6', 'cycle_8', 'wheel', 'house', 'cube', 'peterson', 'house_x', 'star', 'bull']
+        choices=['cycle_4', 'cycle_5', 'cycle_6', 'cycle_8', 'wheel', 'house', 'cube', 'peterson', 'house_x', 'star', 'bull', "no_carboxyl"]
     )
     parser.add_argument(
         "--model",

@@ -1,4 +1,5 @@
 from collections import defaultdict
+import json
 import pickle
 from pprint import pprint
 from typing import List, Optional, Union
@@ -352,6 +353,11 @@ def explanation_accuracy(
                 if isinstance(pred_edge_mask, torch.Tensor):
                     pred_edge_mask = pred_edge_mask.cpu().numpy()
                 # pred_edge_mask = pred_edge_mask.cpu().numpy()
+                
+                # print("=====")
+                # print(gt_edge_mask)
+                # print(pred_edge_mask)
+                # print("=====")
 
                 edge_mask_accuracy = accuracy_score(gt_edge_mask, pred_edge_mask)
                 edge_mask_precision = precision_score(
@@ -898,139 +904,163 @@ def explain_cell_complex_dataset(
     count = 0
     f = []
     time_taken = 0
-    # for i in tqdm(range(num), desc="Explaining Cell Complexes"):
-    for i, index in enumerate(tqdm(dataset.test_index)):
-        if count >= num:
-            break
+    
+    if os.path.exists("explanations/explanation1.pkl"):
+        with open("explanations/explanation1.pkl", "rb") as jf:
+            explanations = pickle.load(jf)
+            pred_explanations = explanations["pred_explanations"]
+            ground_truth_explanations = explanations["ground_truth_explanations"]
+    else:
+        # for i in tqdm(range(num), desc="Explaining Cell Complexes"):
+        for i, index in enumerate(tqdm(dataset.test_index)):
+            if count >= num:
+                break
 
-        if not correct_mask[i]:
-            continue
+            if not correct_mask[i]:
+                continue
 
-        data, gt_explanation, _ = dataset[index]
+            data, gt_explanation, _ = dataset[index]
 
-        if len(gt_explanation) == 0:
-            continue
+            if len(gt_explanation) == 0:
+                continue
 
-        zero_flag = True
-        for gt in gt_explanation:
-            if gt.edge_imp.sum().item() != 0:
-                zero_flag = False
+            zero_flag = True
+            for gt in gt_explanation:
+                if gt.edge_imp.sum().item() != 0:
+                    zero_flag = False
 
-        if zero_flag:
-            continue
+            if zero_flag:
+                continue
 
-        data = data.to(device)
+            data = data.to(device)
 
-        assert data.x is not None, "Data must have node features."
-        assert data.edge_index is not None, "Data must have edge index."
-        pred = get_graph_level_explanation(explainer, data)
-        pred_explanations.append(pred)
-        ground_truth_explanations.append(gt_explanation)
+            assert data.x is not None, "Data must have node features."
+            assert data.edge_index is not None, "Data must have edge index."
+            pred = get_graph_level_explanation(explainer, data)
+            # pred_explanations.append(pred)
+            # ground_truth_explanations.append(gt_explanation)
 
-        edge_mask = None
+            edge_mask = None
 
-        if args.prop_strategy == "hp_tuning":
-            info_prop_methods = []
-            mappings = (
-                create_edge_mapping(data)
-                if args.expl_type == "edge"
-                else create_node_mapping(data)
-            )
-            for prop_method in tqdm(
-                [
-                    "direct_prop",
-                    "hierarchical_prop",
-                    "nonlinear_activation_propagation",
-                    "entropy_based_propagation",
-                ]
-            ):
-                for a_c in [0, 0.5, 1.0, 1.5]:
-                    for a_e in [0, 0.5, 1.0, 1.5]:
-                        node_mask = None
-                        edge_mask = norm(
-                            globals()[prop_method](
-                                data, pred, mappings, alpha_c=a_c, alpha_e=a_e
-                            )
-                        )
-                        if args.explanation_aggregation == "topk":
-                            k = int(0.25 * len(edge_mask))
-                            # take top k edges as 1 and rest as 0
-                            edge_mask = (
-                                edge_mask >= edge_mask.topk(k).values.min()
-                            ).float()
-                        elif args.explanation_aggregation == "threshold":
-                            edge_mask = (edge_mask >= 0.5).float()
-                        if args.expl_type == "node":
-                            node_mask = edge_mask
-                            edge_mask = None
-                        elif args.expl_type == "edge":
+            if args.prop_strategy == "hp_tuning":
+                info_prop_methods = []
+                mappings = (
+                    create_edge_mapping(data)
+                    if args.expl_type == "edge"
+                    else create_node_mapping(data)
+                )
+                for prop_method in tqdm(
+                    [
+                        "direct_prop",
+                        "hierarchical_prop",
+                        "nonlinear_activation_propagation",
+                        "entropy_based_propagation",
+                    ]
+                ):
+                    for a_c in [0, 0.5, 1.0, 1.5]:
+                        for a_e in [0, 0.5, 1.0, 1.5]:
                             node_mask = None
+                            edge_mask = norm(
+                                globals()[prop_method](
+                                    data, pred, mappings, alpha_c=a_c, alpha_e=a_e
+                                )
+                            )
+                            if args.explanation_aggregation == "topk":
+                                k = int(0.25 * len(edge_mask))
+                                # take top k edges as 1 and rest as 0
+                                edge_mask = (
+                                    edge_mask >= edge_mask.topk(k).values.min()
+                                ).float()
+                            elif args.explanation_aggregation == "threshold":
+                                edge_mask = (edge_mask >= 0.5).float()
+                            if args.expl_type == "node":
+                                node_mask = edge_mask
+                                edge_mask = None
+                            elif args.expl_type == "edge":
+                                node_mask = None
 
-                        info_prop_methods.append(
-                            {
-                                "prop_method": prop_method,
-                                "alpha_c": a_c,
-                                "alpha_e": a_e,
-                                "edge_mask": edge_mask,
-                                "node_mask": node_mask,
-                            }
+                            info_prop_methods.append(
+                                {
+                                    "prop_method": prop_method,
+                                    "alpha_c": a_c,
+                                    "alpha_e": a_e,
+                                    "edge_mask": edge_mask,
+                                    "node_mask": node_mask,
+                                }
+                            )
+                            print(
+                                f"Prop Method: {prop_method}, Alpha_c: {a_c}, Alpha_e: {a_e}", end="\r"
+                            )
+                            
+                pred_explanations.append(info_prop_methods)
+                ground_truth_explanations.append(gt_explanation)
+                
+            else:
+                mappings = (
+                    create_edge_mapping(data)
+                    if args.expl_type == "edge"
+                    else create_node_mapping(data)
+                )
+                st = time()
+                if args.prop_strategy == "direct_prop":
+                    edge_mask = norm(
+                        direct_prop(
+                            data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
                         )
-            pred_explanations.append(info_prop_methods)
-            ground_truth_explanations.append(gt_explanation)
-        else:
-            mappings = (
-                create_edge_mapping(data)
-                if args.expl_type == "edge"
-                else create_node_mapping(data)
-            )
-            st = time()
-            if args.prop_strategy == "direct_prop":
-                edge_mask = norm(
-                    direct_prop(
-                        data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
                     )
-                )
-            elif args.prop_strategy == "hierarchical_prop":
-                edge_mask = norm(
-                    hierarchical_prop(
-                        data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                elif args.prop_strategy == "hierarchical_prop":
+                    edge_mask = norm(
+                        hierarchical_prop(
+                            data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                        )
                     )
-                )
-            elif args.prop_strategy == "nonlinear_activation_propagation":
-                edge_mask = norm(
-                    nonlinear_activation_propagation(
-                        data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                elif args.prop_strategy == "nonlinear_activation_propagation":
+                    edge_mask = norm(
+                        nonlinear_activation_propagation(
+                            data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                        )
                     )
-                )
-            elif args.prop_strategy == "entropy_based_propagation":
-                edge_mask = norm(
-                    entropy_based_propagation(
-                        data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                elif args.prop_strategy == "entropy_based_propagation":
+                    edge_mask = norm(
+                        entropy_based_propagation(
+                            data, pred, mappings, alpha_c=args.alpha_c, alpha_e=args.alpha_e
+                        )
                     )
-                )
 
-            mask = "node_mask" if args.expl_type == "node" else "edge_mask"
-            if args.explanation_aggregation == "topk":
-                k = int(0.25 * len(edge_mask))
-                # take top k edges as 1 and rest as 0
-                pred[mask] = (edge_mask >= edge_mask.topk(k).values.min()).float()
-            elif args.explanation_aggregation == "threshold":
-                pred[mask] = (edge_mask >= 0.5).float()
+                mask = "node_mask" if args.expl_type == "node" else "edge_mask"
+                if args.explanation_aggregation == "topk":
+                    k = int(0.25 * len(edge_mask))
+                    # take top k edges as 1 and rest as 0
+                    pred[mask] = (edge_mask >= edge_mask.topk(k).values.min()).float()
+                elif args.explanation_aggregation == "threshold":
+                    pred[mask] = (edge_mask >= 0.5).float()
 
-            time_taken += time() - st
+                time_taken += time() - st
 
-            if graph_explainer is not None:
-                faithfulness = explanation_faithfulness(
-                    graph_explainer,
-                    dataset.get_underlying_graph(index).to(device),
-                    pred,
-                )
-                f.append(faithfulness)
+                if graph_explainer is not None:
+                    faithfulness = explanation_faithfulness(
+                        graph_explainer,
+                        dataset.get_underlying_graph(index).to(device),
+                        pred,
+                    )
+                    f.append(faithfulness)
 
-            pred_explanations.append(pred)
-            ground_truth_explanations.append(gt_explanation)
-        count += 1
+                pred_explanations.append(pred)
+                ground_truth_explanations.append(gt_explanation)
+            count += 1
+        
+        # # save the explanations as pickle file
+        # with open("explanations/explanation1.pkl", "wb") as jf:
+        #     pickle.dump(
+        #         {
+        #             "pred_explanations": pred_explanations,
+        #             "ground_truth_explanations": ground_truth_explanations,
+        #         },
+        #         jf,
+        #     )
 
+    print("EXPLANATION DONE")
+        
     if f == []:
         f = 0
     else:

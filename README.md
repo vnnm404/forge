@@ -1,4 +1,4 @@
-Code for AAAI submission: Higher Order Structures in Graph Explanations
+Code for Higher Order Structures in Graph Explanations
 
 The codebase is built with `Python 3.10.14`.
 
